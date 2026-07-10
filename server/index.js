@@ -163,7 +163,10 @@ app.post('/api/booru/import', (req, res) => {
       filename: postData.filename || 'external_booru',
       url: postData.url,
       type: postData.type || 'image',
-      tags: Array.isArray(postData.tags) ? postData.tags : []
+      tags: Array.isArray(postData.tags) ? postData.tags : [],
+      uploader: postData.uploader || postData.author || 'Anônimo',
+      author: postData.author || postData.uploader || '',
+      source: postData.source || ''
     });
 
     res.status(201).json(importedPost);
@@ -250,7 +253,10 @@ app.post('/api/media', upload.single('file'), (req, res) => {
       filename,
       url: req.file ? `/uploads/${filename}` : url,
       type: type || 'image',
-      tags: parsedTags
+      tags: parsedTags,
+      uploader: req.body.uploader || req.body.author || 'Anônimo',
+      author: req.body.author || req.body.uploader || '',
+      source: req.body.source || ''
     });
 
     res.status(201).json(newPost);
@@ -296,6 +302,52 @@ app.post('/api/auth/login', (req, res) => {
   } catch (err) {
     console.error('Erro em POST /api/auth/login:', err.message);
     res.status(401).json({ error: err.message || 'Credenciais inválidas' });
+  }
+});
+
+/* ==========================================================================
+   USER PROFILE & PRIVACY ENDPOINTS
+   ========================================================================== */
+app.get('/api/users/:username', (req, res) => {
+  try {
+    const user = db.getUserByUsername(req.params.username);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const allPosts = db.getAllPosts({ type: 'all' });
+    const userPosts = allPosts.filter(p => (p.uploader && p.uploader.toLowerCase() === user.username.toLowerCase()) || (p.author && p.author.toLowerCase() === user.username.toLowerCase()));
+    const likedPosts = allPosts.filter(p => Array.isArray(p.likedBy) && p.likedBy.some(u => u.toLowerCase() === user.username.toLowerCase()));
+
+    res.json({
+      ...user,
+      posts: (user.privacy && !user.privacy.showPosts && req.query.viewer !== user.username) ? [] : userPosts,
+      likedPosts: (user.privacy && !user.privacy.showLikes && req.query.viewer !== user.username) ? [] : likedPosts,
+      stats: {
+        postsCount: userPosts.length,
+        likesReceived: userPosts.reduce((acc, p) => acc + (p.likes || 0), 0),
+        likedPostsCount: likedPosts.length
+      }
+    });
+  } catch (err) {
+    console.error('Erro em GET /api/users/:username:', err);
+    res.status(500).json({ error: 'Erro ao carregar perfil de usuário' });
+  }
+});
+
+app.put('/api/users/profile', (req, res) => {
+  try {
+    const token = auth.extractBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Autenticação necessária' });
+    const payload = auth.verifyToken(token);
+    if (!payload || !payload.sub) return res.status(401).json({ error: 'Token inválido' });
+
+    const user = db.getUserById(payload.sub);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const updated = db.updateUserProfile(user.username, req.body || {});
+    res.json(updated);
+  } catch (err) {
+    console.error('Erro em PUT /api/users/profile:', err);
+    res.status(500).json({ error: 'Erro ao atualizar perfil' });
   }
 });
 

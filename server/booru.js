@@ -215,10 +215,52 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
     const hotlinkUrl = `/api/hotlink?url=${encodeURIComponent(fileUrl)}&referer=${encodeURIComponent(siteDomain)}`;
     const hotlinkPreview = `/api/hotlink?url=${encodeURIComponent(previewUrl)}&referer=${encodeURIComponent(siteDomain)}`;
 
+    // Extração da Fonte original (X / Twitter / Pixiv) se disponível
+    const sourceUrl = post.source || (post.data && (post.data.source || post.data.source_url)) || '';
+
+    // Extração inteligente de Autor / Artista sem cair em bots de espelhamento (ex: "danbooru", "gelbooru")
+    let authorName = '';
+    if (post.data && post.data.tag_string_artist) {
+      authorName = post.data.tag_string_artist.split(/[ ,]+/)[0];
+    } else if (post.artist) {
+      authorName = Array.isArray(post.artist) ? post.artist[0] : String(post.artist);
+    }
+    if (!authorName && sourceUrl) {
+      const twMatch = sourceUrl.match(/(?:x\.com|twitter\.com)\/([^/?#]+)/i);
+      if (twMatch && twMatch[1] !== 'i' && twMatch[1] !== 'search' && twMatch[1] !== 'home') {
+        authorName = twMatch[1];
+      }
+    }
+    if (!authorName) {
+      const artistTag = postTags.find(t => t.endsWith('_(artist)') || t.startsWith('artist:'));
+      if (artistTag) {
+        authorName = artistTag.replace(/_\(artist\)$/, '').replace(/^artist:/, '');
+      }
+    }
+    if (!authorName) {
+      const rawAuthor = post.author || post.uploader || post.owner || (post.data && (post.data.author || post.data.uploader_name || post.data.owner || post.data.creator || post.data.user));
+      const ignoredNames = ['danbooru', 'gelbooru', 'safebooru', 'konachan', 'yande.re', 'e621', 'anonymous', 'system', 'admin', 'rule34', 'bot'];
+      if (rawAuthor && typeof rawAuthor === 'string' && !ignoredNames.includes(rawAuthor.toLowerCase().trim())) {
+        authorName = rawAuthor;
+      }
+    }
+    if (!authorName) {
+      const maybeArtist = postTags.find(t => t.includes('(') && !t.includes('(series)') && !t.includes('(character)') && !t.includes('(cosplay)') && !t.includes('the_'));
+      if (maybeArtist) authorName = maybeArtist;
+    }
+    if (!authorName) authorName = `${siteConfig.name.split(' ')[0]}_Uploader`;
+
+    // Extração do Título ou identificação
+    const rawTitle = post.title || (post.data && (post.data.title || post.data.subject)) || '';
+    const cleanTitle = rawTitle && typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim() : `${siteConfig.name.split(' ')[0]} #${postId}`;
+
     normalizedPosts.push({
       id: `booru-${site}-${postId}`,
-      title: `${siteConfig.name.split(' ')[0]} #${postId}`,
-      description: `[ORIGEM EXTERNA: ${siteConfig.name}] | Score: ${score} | Rating: ${String(rating).toUpperCase()} | URL Original Hotlinkada pelo PrismShare.`,
+      title: cleanTitle,
+      author: authorName,
+      uploader: authorName,
+      source: sourceUrl,
+      description: `[ARTISTA / AUTOR: @${authorName}] | Score: ${score} | Rating: ${String(rating).toUpperCase()} | Origem: ${siteConfig.name}.`,
       filename: fileUrl.split('/').pop() || `booru_${postId}`,
       url: hotlinkUrl,
       previewUrl: hotlinkPreview,
@@ -266,12 +308,22 @@ async function fetchBooruTagSuggestions({ site = 'sb', query = '', limit = 12 })
 
     for (const item of rawList) {
       if (typeof item === 'string') {
-        suggestions.push({ name: item, count: 0 });
-      } else if (item && item.name) {
-        suggestions.push({ name: item.name, count: Number(item.count || item.post_count) || 0 });
-      } else if (item && item.label) {
-        const nameClean = item.value || item.label.split(' ')[0];
-        suggestions.push({ name: nameClean, count: 0 });
+        const match = item.match(/^([^\s()]+)\s*\(([0-9,]+)\)/);
+        if (match) {
+          suggestions.push({ name: match[1], count: Number(match[2].replace(/,/g, '')) || 0 });
+        } else {
+          suggestions.push({ name: item, count: 0 });
+        }
+      } else if (item && typeof item === 'object') {
+        let extCount = Number(item.count || item.post_count || item.total) || 0;
+        if (!extCount && typeof item.label === 'string') {
+          const match = item.label.match(/\(([0-9,]+)\)/);
+          if (match) extCount = Number(match[1].replace(/,/g, '')) || 0;
+        }
+        const nameClean = item.value || item.name || (typeof item.label === 'string' ? item.label.split(' ')[0] : '');
+        if (nameClean) {
+          suggestions.push({ name: nameClean, count: extCount });
+        }
       }
     }
 

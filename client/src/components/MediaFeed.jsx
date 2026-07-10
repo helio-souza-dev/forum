@@ -13,7 +13,8 @@ export default function MediaFeed({
   onLike,
   onTagClick,
   selectedTags = [],
-  searchQuery = ''
+  searchQuery = '',
+  onOpenProfile
 }) {
   return (
     <main className="feed-section">
@@ -161,6 +162,7 @@ export default function MediaFeed({
               onCardClick={onCardClick}
               onLike={onLike}
               onTagClick={onTagClick}
+              onOpenProfile={onOpenProfile}
             />
           ))}
         </div>

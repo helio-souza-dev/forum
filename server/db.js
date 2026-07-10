@@ -280,11 +280,24 @@ class Database {
       username: username.trim(),
       passwordHash,
       role,
+      avatarUrl: '',
+      bio: 'Olá! Sou um membro ativo do PrismShare.',
+      bannerUrl: '',
+      privacy: { showLikes: true, showPosts: true, allowComments: true },
       createdAt: new Date().toISOString()
     };
     this.data.users.push(newUser);
     this.save('user', newUser);
-    return { id: newUser.id, username: newUser.username, role: newUser.role, createdAt: newUser.createdAt };
+    return {
+      id: newUser.id,
+      username: newUser.username,
+      role: newUser.role,
+      avatarUrl: newUser.avatarUrl || '',
+      bio: newUser.bio || 'Olá! Sou um membro ativo do PrismShare.',
+      bannerUrl: newUser.bannerUrl || '',
+      privacy: newUser.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      createdAt: newUser.createdAt
+    };
   }
 
   loginUser({ username, password }) {
@@ -303,9 +316,6 @@ class Database {
     if (isBcryptHash) {
       passwordMatches = bcrypt.compareSync(password, user.passwordHash);
     } else {
-      // Conta antiga, criada antes da migração para bcrypt: valida contra o
-      // hash sha256 legado e, se bater, re-hasheia a senha com bcrypt na hora,
-      // de forma transparente para o usuário.
       passwordMatches = user.passwordHash === legacySha256(password);
       if (passwordMatches) {
         user.passwordHash = bcrypt.hashSync(password, 10);
@@ -318,7 +328,16 @@ class Database {
 
     if (!user.role) user.role = 'user';
     this.save('user', user);
-    return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      avatarUrl: user.avatarUrl || '',
+      bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
+      bannerUrl: user.bannerUrl || '',
+      privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      createdAt: user.createdAt
+    };
   }
 
   getUserByUsername(username) {
@@ -326,14 +345,58 @@ class Database {
     const clean = username.trim().toLowerCase();
     const user = this.data.users.find(u => u.username.toLowerCase() === clean);
     if (!user) return null;
-    return { id: user.id, username: user.username, createdAt: user.createdAt };
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role || 'user',
+      avatarUrl: user.avatarUrl || '',
+      bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
+      bannerUrl: user.bannerUrl || '',
+      privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      createdAt: user.createdAt
+    };
   }
 
   getUserById(id) {
     if (!id) return null;
     const user = this.data.users.find(u => u.id === id);
     if (!user) return null;
-    return { id: user.id, username: user.username, role: user.role || 'user', createdAt: user.createdAt };
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role || 'user',
+      avatarUrl: user.avatarUrl || '',
+      bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
+      bannerUrl: user.bannerUrl || '',
+      privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      createdAt: user.createdAt
+    };
+  }
+
+  updateUserProfile(username, profileData) {
+    if (!username) return null;
+    const clean = username.trim().toLowerCase();
+    const user = this.data.users.find(u => u.username.toLowerCase() === clean);
+    if (!user) return null;
+
+    if (profileData.avatarUrl !== undefined) user.avatarUrl = profileData.avatarUrl;
+    if (profileData.bio !== undefined) user.bio = profileData.bio;
+    if (profileData.bannerUrl !== undefined) user.bannerUrl = profileData.bannerUrl;
+    if (profileData.privacy !== undefined) {
+      user.privacy = { ...(user.privacy || {}), ...profileData.privacy };
+    }
+
+    this.save('user', user);
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role || 'user',
+      avatarUrl: user.avatarUrl || '',
+      bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
+      bannerUrl: user.bannerUrl || '',
+      privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      createdAt: user.createdAt
+    };
   }
 
   /* ==========================================================================
@@ -389,6 +452,9 @@ class Database {
       url: postData.url || `/uploads/${postData.filename}`,
       type: postData.type || 'image',
       tags: Array.isArray(postData.tags) ? postData.tags : [],
+      uploader: postData.uploader || postData.author || 'Anônimo',
+      author: postData.author || postData.uploader || '',
+      source: postData.source || '',
       likes: 0,
       likedBy: [],
       views: 0,

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Heart, Eye, Film, Image as ImageIcon, Zap, Hash, Download, Globe, AlertTriangle } from 'lucide-react';
+import { Heart, Eye, Film, Image as ImageIcon, Zap, Hash, Download, Globe, AlertTriangle, MessageSquare } from 'lucide-react';
 
 export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImportPost, importingIds = [], currentUser = null }) {
   const videoRef = useRef(null);
@@ -21,6 +21,7 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
     : (post.likes !== undefined ? post.likes : 0);
 
   const viewsCount = post.views !== undefined ? post.views : 0;
+  const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
 
   const handleMediaError = (e) => {
     const step = e.target.dataset.errStep || '0';
@@ -188,7 +189,21 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
       </div>
 
       <div className="card-content">
-        <h3 className="card-title">{post.title || 'Mídia sem título'}</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+          <h3 className="card-title" style={{ margin: 0, flex: 1 }}>{post.title || 'Mídia sem título'}</h3>
+          {(post.author || post.uploader || (post.external && post.siteName)) && (
+            <span 
+              className="author-badge"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenProfile) onOpenProfile(post.author || post.uploader || post.siteName.split(' ')[0]);
+              }}
+              style={{ cursor: 'pointer', fontSize: '0.7rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, backgroundColor: 'rgba(167, 139, 250, 0.12)', padding: '0.15rem 0.45rem', border: '1px solid rgba(167, 139, 250, 0.35)', whiteSpace: 'nowrap', borderRadius: '3px' }}
+            >
+              por @{post.author || post.uploader || post.siteName.split(' ')[0]}
+            </span>
+          )}
+        </div>
         {post.description && (
           <p className="card-desc">{post.description}</p>
         )}
@@ -215,6 +230,11 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
           <div className="stat-item" title={`${viewsCount} visualizações registradas no banco de dados`}>
             <Eye size={14} color="#a78bfa" />
             <span>{viewsCount}</span>
+          </div>
+
+          <div className="stat-item" title={`${commentsCount} comentários`}>
+            <MessageSquare size={14} color="#a78bfa" />
+            <span>{commentsCount}</span>
           </div>
 
           {post.external && (

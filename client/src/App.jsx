@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import TagSidebar from './components/TagSidebar';
 import MediaFeed from './components/MediaFeed';
@@ -9,9 +10,12 @@ import CinemaModal from './components/CinemaModal';
 import { AuthModal } from './components/AuthModal';
 import AdminPanel from './components/AdminPanel';
 import DevPanel from './components/DevPanel';
+import UserProfilePage from './components/UserProfilePage';
 import { ChevronLeft, ChevronRight, ChevronsLeft, PlusCircle, Terminal } from 'lucide-react';
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [posts, setPosts] = useState([]);
   const [allTags, setAllTags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,50 @@ export default function App() {
   // Modals state
   const [selectedPostForModal, setSelectedPostForModal] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState(null);
+
+  // Sincronização automática de Páginas/Rotas com a URL do navegador
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith('/profile/')) {
+      const username = decodeURIComponent(path.replace('/profile/', '').trim());
+      if (username) {
+        setSelectedProfileUser(username);
+        setMode('profile');
+      }
+    } else if (path === '/booru') {
+      setMode('booru');
+      setSelectedProfileUser(null);
+    } else if (path === '/admin') {
+      setMode('admin');
+      setSelectedProfileUser(null);
+    } else if (path === '/dev') {
+      setMode('dev');
+      setSelectedProfileUser(null);
+    } else {
+      setMode('local');
+      setSelectedProfileUser(null);
+    }
+  }, [location.pathname]);
+
+  const handleOpenProfile = (username) => {
+    if (!username) return;
+    const cleanUser = username.replace(/^@/, '').trim();
+    setSelectedProfileUser(cleanUser);
+    setMode('profile');
+    navigate(`/profile/${encodeURIComponent(cleanUser)}`);
+  };
+
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    if (newMode !== 'profile') {
+      setSelectedProfileUser(null);
+    }
+    if (newMode === 'booru') navigate('/booru');
+    else if (newMode === 'admin') navigate('/admin');
+    else if (newMode === 'dev') navigate('/dev');
+    else if (newMode === 'local') navigate('/');
+  };
 
   const handleAuthSuccess = (userData) => {
     setCurrentUser(userData);
@@ -495,10 +543,11 @@ export default function App() {
         onSelectTag={(tagName) => handleTagClickFromCard(tagName)}
         selectedTags={selectedTags}
         mode={mode}
-        onModeChange={setMode}
+        onModeChange={handleModeChange}
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onOpenProfile={handleOpenProfile}
       />
 
       {mode === 'booru' && (
@@ -541,6 +590,7 @@ export default function App() {
             selectedTags={selectedTags}
             searchQuery={searchQuery}
             currentUser={currentUser}
+            onOpenProfile={handleOpenProfile}
           />
         ) : mode === 'booru' ? (
           <main className="feed-section" style={{ width: '100%' }}>
@@ -651,6 +701,7 @@ export default function App() {
                       onImportPost={handleImportPost}
                       importingIds={importingIds}
                       currentUser={currentUser}
+                      onOpenProfile={handleOpenProfile}
                     />
                   ))}
                 </div>
@@ -815,6 +866,21 @@ export default function App() {
               />
             )}
           </div>
+        ) : mode === 'profile' && selectedProfileUser ? (
+          <div style={{ width: '100%' }}>
+            <UserProfilePage
+              username={selectedProfileUser}
+              currentUser={currentUser}
+              onBack={() => {
+                handleModeChange('local');
+              }}
+              onSelectPost={(post) => setSelectedPostForModal(post)}
+              onOpenUpload={() => setIsUploadOpen(true)}
+              onRequireAuth={handleRequireAuth}
+              onLike={handleLike}
+              onOpenProfile={handleOpenProfile}
+            />
+          </div>
         ) : null}
       </div>
 
@@ -835,6 +901,7 @@ export default function App() {
           importingIds={importingIds}
           currentUser={currentUser}
           onRequireAuth={handleRequireAuth}
+          onOpenProfile={handleOpenProfile}
         />
       )}
 

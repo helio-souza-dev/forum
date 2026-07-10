@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Globe, Film, Search, Zap, Hash } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Globe, Film, Search, Zap, Hash, Loader2 } from 'lucide-react';
+
+// Injeta o keyframe da animação uma única vez (evita depender do Tailwind,
+// que é a razão do spinner girar aqui no preview mas não no seu site).
+if (typeof document !== 'undefined' && !document.getElementById('boorubar-spin-keyframes')) {
+  const styleTag = document.createElement('style');
+  styleTag.id = 'boorubar-spin-keyframes';
+  styleTag.textContent = `
+    @keyframes boorubar-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(styleTag);
+}
 
 export default function BooruBar({
   sites = [],
@@ -15,14 +29,26 @@ export default function BooruBar({
   const [localTagInput, setLocalTagInput] = useState(booruTags);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  // Controla requisições em voo para evitar que uma resposta antiga
+  // sobrescreva uma mais nova (a causa da "instabilidade" original).
+  const abortRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const blurTimeoutRef = useRef(null);
 
   useEffect(() => {
     setLocalTagInput(booruTags);
   }, [booruTags]);
 
   useEffect(() => {
+    // Sempre que o input muda, qualquer sugestão antiga fica obsoleta.
+    setActiveIndex(-1);
+
     if (!localTagInput || !localTagInput.trim()) {
       setSuggestions([]);
+      setSuggestLoading(false);
       return;
     }
 
@@ -31,40 +57,118 @@ export default function BooruBar({
 
     if (lastWord.length < 2) {
       setSuggestions([]);
+      setSuggestLoading(false);
       return;
     }
 
+    const currentRequestId = ++requestIdRef.current;
+    setSuggestLoading(true);
+
     const timer = setTimeout(async () => {
+      // Cancela a requisição anterior, se ainda estiver em andamento.
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        const res = await fetch(`/api/booru/tags?site=${encodeURIComponent(selectedSite)}&query=${encodeURIComponent(lastWord)}`);
+        const res = await fetch(
+          `/api/booru/tags?site=${encodeURIComponent(selectedSite)}&query=${encodeURIComponent(lastWord)}`,
+          { signal: controller.signal }
+        );
+
+        // Se outra requisição mais nova já foi disparada, ignora esta resposta.
+        if (currentRequestId !== requestIdRef.current) return;
+
         if (res.ok) {
           const data = await res.json();
           setSuggestions(Array.isArray(data) ? data : []);
+        } else {
+          setSuggestions([]);
         }
       } catch (err) {
-        console.error('Erro no autocomplete booru:', err);
+        if (err.name !== 'AbortError') {
+          console.error('Erro no autocomplete booru:', err);
+          if (currentRequestId === requestIdRef.current) setSuggestions([]);
+        }
+      } finally {
+        if (currentRequestId === requestIdRef.current) setSuggestLoading(false);
       }
-    }, 250);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [localTagInput, selectedSite]);
 
+  // Limpa qualquer timeout de blur pendente ao desmontar.
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
+
+  const closeSuggestions = useCallback(() => {
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    setShowSuggestions(false);
+    closeSuggestions();
     onBooruTagsChange(localTagInput);
     if (onSearchSubmit) onSearchSubmit(localTagInput);
   };
 
+  const applySuggestion = useCallback((suggestionName) => {
+    setLocalTagInput((prev) => {
+      const words = prev.split(/[ ,]+/);
+      words.pop(); // Remove tag incompleta
+      words.push(suggestionName);
+      const newTags = words.filter(Boolean).join(' ');
+      onBooruTagsChange(newTags);
+      if (onSearchSubmit) onSearchSubmit(newTags);
+      return newTags;
+    });
+    // Evita que o efeito de autocomplete dispare de novo com o texto recém-aplicado.
+    requestIdRef.current += 1;
+    setSuggestions([]);
+    closeSuggestions();
+  }, [onBooruTagsChange, onSearchSubmit, closeSuggestions]);
+
   const handleSuggestionClick = (suggestionName) => {
-    const words = localTagInput.split(/[ ,]+/);
-    words.pop(); // Remove tag incompleta
-    words.push(suggestionName);
-    const newTags = words.filter(Boolean).join(' ');
-    setLocalTagInput(newTags);
-    setShowSuggestions(false);
-    onBooruTagsChange(newTags);
-    if (onSearchSubmit) onSearchSubmit(newTags);
+    applySuggestion(suggestionName);
+  };
+
+  const handleInputBlur = () => {
+    // Timeout curto só pra permitir que o onMouseDown da sugestão dispare antes do blur fechar a lista.
+    blurTimeoutRef.current = setTimeout(() => closeSuggestions(), 150);
+  };
+
+  const handleInputFocus = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    if (suggestions.length > 0) setShowSuggestions(true);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeSuggestions();
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      applySuggestion(suggestions[activeIndex].name);
+    }
   };
 
   const safeSites = Array.isArray(sites) ? sites : [];
@@ -178,8 +282,9 @@ export default function BooruBar({
               setLocalTagInput(e.target.value);
               setShowSuggestions(true);
             }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            onKeyDown={handleKeyDown}
             style={{
               width: '100%',
               height: '44px',
@@ -193,7 +298,7 @@ export default function BooruBar({
             }}
           />
 
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && (suggestLoading || suggestions.length > 0) && (
             <div
               style={{
                 position: 'absolute',
@@ -209,13 +314,25 @@ export default function BooruBar({
                 marginTop: '4px'
               }}
             >
-              <div style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#888', borderBottom: '1px solid #222' }}>
+              <div style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#888', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {suggestLoading && (
+                  <Loader2
+                    size={12}
+                    color="#a78bfa"
+                    style={{ animation: 'boorubar-spin 0.8s linear infinite' }}
+                  />
+                )}
                 SUGESTÕES DE TAGS DA API ({currentSiteInfo.name || 'BOORU'}):
               </div>
               {suggestions.map((item, idx) => (
                 <div
                   key={`${item.name}-${idx}`}
                   onMouseDown={() => handleSuggestionClick(item.name)}
+                  onMouseEnter={(e) => {
+                    setActiveIndex(idx);
+                    e.currentTarget.style.backgroundColor = '#181818';
+                  }}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx === activeIndex ? '#181818' : 'transparent')}
                   style={{
                     padding: '0.6rem 1rem',
                     cursor: 'pointer',
@@ -225,17 +342,24 @@ export default function BooruBar({
                     fontFamily: 'JetBrains Mono, monospace',
                     fontSize: '0.85rem',
                     borderBottom: '1px solid #1a1a1a',
-                    color: '#fff'
+                    color: '#fff',
+                    backgroundColor: idx === activeIndex ? '#181818' : 'transparent'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#181818'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <span style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
                     <Hash size={14} /> {item.name}
                   </span>
-                  {item.count > 0 && (
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>{item.count} mídias</span>
-                  )}
+                  <span style={{
+                    fontSize: '0.75rem',
+                    color: item.count > 0 ? '#00ff66' : '#888',
+                    backgroundColor: item.count > 0 ? '#09150e' : '#111',
+                    border: `1px solid ${item.count > 0 ? '#00ff66' : '#222'}`,
+                    padding: '0.2rem 0.6rem',
+                    fontWeight: 700,
+                    fontFamily: 'JetBrains Mono, monospace'
+                  }}>
+                    {item.count > 0 ? `${Number(item.count).toLocaleString('pt-BR')} resultados` : 'Tag disponível'}
+                  </span>
                 </div>
               ))}
             </div>

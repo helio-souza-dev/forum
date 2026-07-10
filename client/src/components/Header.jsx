@@ -12,7 +12,8 @@ export default function Header({
   onModeChange,
   currentUser = null,
   onOpenAuth,
-  onLogout
+  onLogout,
+  onOpenProfile
 }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -208,9 +209,14 @@ export default function Header({
         {currentUser ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#0a1a1c', border: '1px solid #a78bfa', padding: '0 0.85rem', height: '40px', boxSizing: 'border-box' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00ff66', boxShadow: '0 0 8px #00ff66', display: 'inline-block' }} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>
+            <button
+              type="button"
+              onClick={() => onOpenProfile && onOpenProfile(currentUser.username)}
+              style={{ background: 'transparent', border: 'none', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 800, color: '#00ff66', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              title="Abrir Meu Perfil"
+            >
               @{currentUser.username}
-            </span>
+            </button>
             <button
               type="button"
               onClick={onLogout}
