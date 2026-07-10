@@ -212,6 +212,60 @@ app.get('/api/tags', (req, res) => {
   }
 });
 
+/* ==========================================================================
+   ENDPOINT DE UPLOAD DE FOTO 100% GRÁTIS (CATBOX.MOE / LOCAL FALLBACK)
+   Upload de fotos de perfil (avatares e banners) sem custos de servidor
+   ========================================================================== */
+app.post('/api/upload/free', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    }
+
+    const filePath = req.file.path;
+    const fileBuffer = fs.readFileSync(filePath);
+    const blob = new Blob([fileBuffer], { type: req.file.mimetype || 'image/png' });
+
+    const formData = new FormData();
+    formData.append('reqtype', 'fileupload');
+    formData.append('fileToUpload', blob, req.file.originalname || 'avatar.png');
+
+    console.log(`📡 [Upload Grátis] Enviando foto de perfil para Catbox.moe (${req.file.originalname})...`);
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    try {
+      const catboxRes = await fetch('https://catbox.moe/user/api.php', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (catboxRes.ok) {
+        const catboxUrl = (await catboxRes.text()).trim();
+        if (catboxUrl && catboxUrl.startsWith('http')) {
+          console.log(`✅ [Upload Grátis] Sucesso Catbox.moe: ${catboxUrl}`);
+          // Remove arquivo local para economizar disco 100%
+          try { fs.unlinkSync(filePath); } catch(e) {}
+          return res.json({ url: catboxUrl, provider: 'catbox' });
+        }
+      }
+    } catch (apiErr) {
+      clearTimeout(timeout);
+      console.warn(`⚠️ [Upload Grátis] Catbox indisponível (${apiErr.message}). Usando fallback de disco local.`);
+    }
+
+    // Fallback local seguro
+    const localUrl = `/uploads/${req.file.filename}`;
+    res.json({ url: localUrl, provider: 'local' });
+  } catch (err) {
+    console.error('Erro em POST /api/upload/free:', err);
+    res.status(500).json({ error: 'Erro ao fazer upload grátis do arquivo.' });
+  }
+});
+
 app.post('/api/media', upload.single('file'), (req, res) => {
   try {
     let { title, description, tags, type, url } = req.body;

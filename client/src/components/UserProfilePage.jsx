@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Heart, Image as ImageIcon, Shield, Settings, Check, Lock, Calendar, Edit3, Eye, EyeOff, Terminal } from 'lucide-react';
 import MediaCard from './MediaCard';
+import PhotoCropperModal from './PhotoCropperModal';
 
 export default function UserProfilePage({ username, currentUser, onBack, onSelectPost, onOpenUpload, onRequireAuth, onLike, onOpenProfile }) {
   const [profile, setProfile] = useState(null);
@@ -17,6 +18,59 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
   const [bio, setBio] = useState('');
   const [showLikes, setShowLikes] = useState(true);
   const [showPosts, setShowPosts] = useState(true);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+
+  // Cropper states
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImageSrc, setCropperImageSrc] = useState(null);
+  const [cropperTargetField, setCropperTargetField] = useState('avatar');
+
+  const handleFileSelectForCropper = (e, targetField) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    // reset input value for re-selection
+    e.target.value = null;
+
+    const objectUrl = URL.createObjectURL(file);
+    setCropperImageSrc(objectUrl);
+    setCropperTargetField(targetField);
+    setCropperOpen(true);
+  };
+
+  const handleConfirmCroppedUpload = async (blob) => {
+    if (!blob) return;
+
+    if (cropperTargetField === 'avatar') setUploadingAvatar(true);
+    else setUploadingBanner(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', blob, cropperTargetField === 'avatar' ? 'avatar_cropped.webp' : 'banner_cropped.webp');
+
+      const res = await fetch('/api/upload/free', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao enviar foto recortada.');
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        if (cropperTargetField === 'avatar') setAvatarUrl(data.url);
+        else setBannerUrl(data.url);
+        setCropperOpen(false);
+      }
+    } catch (err) {
+      alert(`Erro no upload: ${err.message}`);
+    } finally {
+      if (cropperTargetField === 'avatar') setUploadingAvatar(false);
+      else setUploadingBanner(false);
+    }
+  };
 
   const isOwner = currentUser && currentUser.username && username && currentUser.username.toLowerCase() === username.toLowerCase();
 
@@ -363,51 +417,110 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.5rem' }}>
-                      URL DO AVATAR / FOTO DE PERFIL:
+                      FOTO DE PERFIL / AVATAR:
                     </label>
-                    <input
-                      type="url"
-                      placeholder="https://exemplo.com/sua-foto.png"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.85rem',
-                        backgroundColor: '#151515',
-                        border: '1px solid #333',
-                        color: '#fff',
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        placeholder="Cole a URL ou clique em escolher do PC ->"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        style={{
+                          flex: 1,
+                          minWidth: '220px',
+                          padding: '0.85rem',
+                          backgroundColor: '#151515',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: '0.9rem',
+                          borderRadius: '4px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <label style={{
+                        background: '#1a1a1a',
+                        border: '1px solid #a78bfa',
+                        color: '#a78bfa',
+                        padding: '0 1.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        cursor: uploadingAvatar ? 'wait' : 'pointer',
                         fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: '0.95rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
                         borderRadius: '4px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {uploadingAvatar ? '⏳ ENVIANDO (GRÁTIS)...' : '📁 ESCOLHER & RECORTAR'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileSelectForCropper(e, 'avatar')}
+                          disabled={uploadingAvatar}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
                     <p style={{ fontSize: '0.75rem', color: '#666', margin: '0.4rem 0 0 0', fontFamily: 'JetBrains Mono, monospace' }}>
-                      Cole um link de imagem direta (PNG/JPG/GIF). Sua inicial será exibida caso o campo esteja em branco.
+                      ✨ 100% Gratuito! Com recorte interativo, zoom automotimizado e compatível com links locais e da internet.
                     </p>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.5rem' }}>
-                      URL DO BANNER DE FUNDO:
+                      BANNER DE FUNDO (TOPO DO PERFIL):
                     </label>
-                    <input
-                      type="url"
-                      placeholder="https://exemplo.com/banner-cyberpunk.jpg"
-                      value={bannerUrl}
-                      onChange={(e) => setBannerUrl(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.85rem',
-                        backgroundColor: '#151515',
-                        border: '1px solid #333',
-                        color: '#fff',
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        placeholder="Cole a URL ou clique no botão ao lado ->"
+                        value={bannerUrl}
+                        onChange={(e) => setBannerUrl(e.target.value)}
+                        style={{
+                          flex: 1,
+                          minWidth: '220px',
+                          padding: '0.85rem',
+                          backgroundColor: '#151515',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: '0.9rem',
+                          borderRadius: '4px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <label style={{
+                        background: '#1a1a1a',
+                        border: '1px solid #a78bfa',
+                        color: '#a78bfa',
+                        padding: '0 1.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        cursor: uploadingBanner ? 'wait' : 'pointer',
                         fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: '0.95rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
                         borderRadius: '4px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {uploadingBanner ? '⏳ ENVIANDO (GRÁTIS)...' : '📁 ESCOLHER & RECORTAR'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileSelectForCropper(e, 'banner')}
+                          disabled={uploadingBanner}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#666', margin: '0.4rem 0 0 0', fontFamily: 'JetBrains Mono, monospace' }}>
+                      Recomendado: imagens widescreen ou paisagem (com recorte/zoom integrado).
+                    </p>
                   </div>
 
                   <div>
@@ -567,6 +680,15 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
           </div>
         </div>
       ) : null}
+
+      <PhotoCropperModal
+        isOpen={cropperOpen}
+        imageUrl={cropperImageSrc}
+        type={cropperTargetField}
+        uploading={uploadingAvatar || uploadingBanner}
+        onClose={() => setCropperOpen(false)}
+        onConfirm={handleConfirmCroppedUpload}
+      />
     </main>
   );
 }
