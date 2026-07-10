@@ -5,7 +5,6 @@ Plataforma de upload e feed de mídia (imagens, GIFs e vídeos) organizada por t
 ---
 
 ## 🌟 Funcionalidades Principais
-
 - **Feed Local & Nuvem de Mídia**: Upload de imagens e vídeos por arquivo ou URL, organizado com tags dinâmicas, curtidas em tempo real, contagem de visualizações e sistema de comentários.
 - **Página de Perfil Dedicada (`/user/:username`)**: Visualização em página inteira do perfil do usuário com foto de avatar, banner de capa, bio, abas de **Meus Posts**, **Curtidas** e **Configurações de Privacidade** (modo público/privado).
 - **Recorte Interativo & Exportação WebP (`PhotoCropperModal`)**: Ferramenta de zoom, arrasto e enquadramento visual antes do envio de fotos de perfil, otimizando automaticamente as imagens para o formato leve `WebP`.
@@ -16,7 +15,6 @@ Plataforma de upload e feed de mídia (imagens, GIFs e vídeos) organizada por t
 - **Painéis Administrativos & Dev**:
   - **Admin Panel**: Moderação de mídias (banir/desbanir) e gestão de contas.
   - **Dev Panel & Terminal Virtual**: Telemetria em tempo real do sistema (posts, views, likes, armazenamento, tags mais populares), log de auditoria e inspeção de credenciais de segurança.
-
 ---
 
 ## 🛡️ Pacote de Blindagem & Segurança Prioritária
@@ -39,7 +37,6 @@ O PrismShare passou por uma auditoria completa de segurança, fechando todas as 
    - Política restritiva de `CORS` configurada com `allowlist` segura para domínios clientes autorizados.
 6. **🎯 Single Source of Truth (SSOT) no Cliente**:
    - Extração de sessão centralizada pelo helper `getAuthToken(currentUser)` em `client/src/utils/auth.js`, eliminando chaves duplicadas no `localStorage`.
-
 ---
 
 ## 🛠️ Stack Técnica
@@ -56,7 +53,6 @@ O PrismShare passou por uma auditoria completa de segurança, fechando todas as 
 ---
 
 ## 📂 Estrutura do Projeto
-
 ```text
 forum/
 ├── .env.example          # Modelo de variáveis de ambiente
@@ -76,7 +72,6 @@ forum/
     ├── dev.js            # Sobe o backend (porta 3001) e o frontend (porta 5173) em paralelo
     └── install.js        # Script de instalação de todas as dependências
 ```
-
 ---
 
 ## 🚀 Como Rodar Localmente
@@ -104,7 +99,6 @@ MONGODB_URI=mongodb+srv://usuario:senha@cluster.mongodb.net/prismshare?retryWrit
 PRISMSHARE_JWT_SECRET=seu_segredo_aleatorio_jwt
 PRISMSHARE_DEV_PASSWORD=sua_senha_fixa_para_o_usuario_dev
 ```
-
 > **Nota:** Se a variável `MONGODB_URI` for deixada em branco, o PrismShare funcionará de modo **100% autônomo na sua máquina**, persistindo dados localmente no arquivo `server/data/db.json` com gravação atômica instantânea.
 
 ### 👑 Conta de Desenvolvedor Padrão (`dev`)
@@ -131,13 +125,6 @@ Ao rodar o servidor pela primeira vez, caso o usuário `dev` não exista, o sist
 | `POST` | `/api/auth/login` | Autenticação do usuário e emissão de Token JWT | Não (`Rate Limiter`) |
 | `GET/POST` | `/api/admin/*` | Moderação de mídias e gestão de contas | **Sim (`admin`/`dev`)** |
 | `GET` | `/api/dev/stats` | Telemetria de infraestrutura e log de auditoria do sistema | **Sim (`dev`)** |
-
----
-
-## ✅ Auditoria & Checklist de Resolução do Roadmap
-
-Abaixo está o status atualizado de todas as limitações e vulnerabilidades apontadas nas revisões técnicas anteriores:
-
 - [x] **Autenticação com Token/Sessão Real**: Substituído o header simples de usuário por tokens JWT criptografados com verificação de papéis (`RBAC`) em tempo real no banco.
 - [x] **Hash de Senha Seguro**: Substituído `sha256` puro pelo padrão `bcryptjs` (salt 10 rounds), com rotina de transição automática de senhas antigas no login.
 - [x] **Segurança do Usuário Padrão (`dev`)**: Fim da credencial `dev/dev1234` hardcoded em código. Agora a senha é gerada aleatoriamente na primeira inicialização ou configurada via `.env`.
@@ -151,5 +138,4 @@ Abaixo está o status atualizado de todas as limitações e vulnerabilidades apo
 ---
 
 ## 📄 Licença
-
 Projeto pessoal/experimental sob licença livre.
