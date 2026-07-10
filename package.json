@@ -1,0 +1,16 @@
+{
+  "name": "prismshare-root",
+  "version": "1.0.0",
+  "description": "PrismShare - Tag-based Media Upload & Feed Platform",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "install:all": "node scripts/install.js",
+    "dev": "node scripts/dev.js",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
