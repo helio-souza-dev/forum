@@ -73,13 +73,14 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedMimes = [
     'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif',
-    'video/mp4', 'video/webm', 'video/quicktime', 'application/octet-stream'
+    'video/mp4', 'video/webm', 'video/quicktime'
   ];
   const allowedExts = /\.(png|jpe?g|webp|gif|mp4|webm|mov)$/i;
-  if (allowedMimes.includes(file.mimetype) || allowedExts.test(file.originalname)) {
+  
+  if (allowedMimes.includes(file.mimetype) && allowedExts.test(file.originalname)) {
     cb(null, true);
   } else {
-    cb(new Error('Tipo de arquivo não suportado (apenas imagens e vídeos permitidos).'));
+    cb(new Error('Tipo de arquivo não suportado ou extensão inválida. Envie apenas imagens (PNG, JPG, WEBP, GIF) ou vídeos (MP4, WEBM).'));
   }
 };
 
@@ -88,6 +89,43 @@ const upload = multer({
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
   fileFilter
 });
+
+function validateMagicBytes(filePath) {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(16);
+    fs.readSync(fd, buffer, 0, 16, 0);
+    fs.closeSync(fd);
+
+    // JPEG / JPG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return true;
+    
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47 &&
+        buffer[4] === 0x0D && buffer[5] === 0x0A && buffer[6] === 0x1A && buffer[7] === 0x0A) return true;
+    
+    // GIF: 47 49 46 38 37 61 (GIF87a) ou 47 49 46 38 39 61 (GIF89a)
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38 &&
+        (buffer[4] === 0x37 || buffer[4] === 0x39) && buffer[5] === 0x61) return true;
+    
+    // WebP: RIFF nos bytes 0..3 e WEBP nos bytes 8..11
+    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+        buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) return true;
+    
+    // MP4 / MOV: ftyp nos bytes 4..7 ou moov ou mdat
+    if ((buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70) ||
+        (buffer[4] === 0x6D && buffer[5] === 0x6F && buffer[6] === 0x6F && buffer[7] === 0x76) ||
+        (buffer[4] === 0x6D && buffer[5] === 0x64 && buffer[6] === 0x61 && buffer[7] === 0x74)) return true;
+    
+    // WebM: 1A 45 DF A3 (EBML header)
+    if (buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3) return true;
+
+    return false;
+  } catch (err) {
+    console.error('Erro ao ler magic bytes do arquivo:', err);
+    return false;
+  }
+}
 
 function isSafeHotlinkUrl(targetUrl) {
   try {
@@ -302,6 +340,11 @@ app.post('/api/upload/free', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     }
 
+    if (!validateMagicBytes(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch(e) {}
+      return res.status(400).json({ error: 'Arquivo inválido ou com assinatura (magic bytes) incompatível. Envie apenas arquivos reais de mídia.' });
+    }
+
     const filePath = req.file.path;
     const fileBuffer = fs.readFileSync(filePath);
     const blob = new Blob([fileBuffer], { type: req.file.mimetype || 'image/png' });
@@ -352,6 +395,10 @@ app.post('/api/media', upload.single('file'), (req, res) => {
     
     let filename = '';
     if (req.file) {
+      if (!validateMagicBytes(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch(e) {}
+        return res.status(400).json({ error: 'Arquivo inválido ou com assinatura (magic bytes) incompatível. Envie apenas arquivos reais de mídia.' });
+      }
       filename = req.file.filename;
       const mime = req.file.mimetype || '';
       if (mime.includes('video/')) {
