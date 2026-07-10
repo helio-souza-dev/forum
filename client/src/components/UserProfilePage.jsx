@@ -3,8 +3,10 @@ import { ArrowLeft, User, Heart, Image as ImageIcon, Shield, Settings, Check, Lo
 import MediaCard from './MediaCard';
 import PhotoCropperModal from './PhotoCropperModal';
 import { getAuthToken } from '../utils/auth';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function UserProfilePage({ username, currentUser, onBack, onSelectPost, onOpenUpload, onRequireAuth, onLike, onOpenProfile }) {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -178,7 +180,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
           onMouseEnter={(e) => { e.currentTarget.style.background = '#a78bfa'; e.currentTarget.style.color = '#000'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a78bfa'; }}
         >
-          <ArrowLeft size={16} /> VOLTAR AO FEED
+          <ArrowLeft size={16} /> {t('userProfile.back').toUpperCase()}
         </button>
 
         {isOwner && !isEditing && (
@@ -200,7 +202,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
               boxShadow: '0 0 10px rgba(0, 255, 102, 0.2)'
             }}
           >
-            <Settings size={15} /> CONFIGURAR PERFIL E PRIVACIDADE
+            <Settings size={15} /> {t('userProfile.editProfile').toUpperCase()}
           </button>
         )}
       </div>
@@ -208,14 +210,14 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
       {loading ? (
         <div style={{ padding: '8rem 2rem', textAlign: 'center', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace' }}>
           <Terminal size={48} color="#a78bfa" style={{ margin: '0 auto 1.5rem auto', animation: 'pulse 1.5s infinite' }} />
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.5rem' }}>CARREGANDO PÁGINA DO PERFIL...</div>
-          <div style={{ color: '#666', fontSize: '0.9rem' }}>Conectando ao banco de dados e verificando mídias de @{username}.</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.5rem' }}>{t('userProfile.loading').toUpperCase()}</div>
+          <div style={{ color: '#666', fontSize: '0.9rem' }}>{t('userProfile.loadingSubtext')}</div>
         </div>
       ) : error ? (
         <div style={{ padding: '6rem 2rem', textAlign: 'center', color: '#ff0055', fontFamily: 'JetBrains Mono, monospace' }}>
           <p style={{ fontSize: '1.4rem', fontWeight: 800 }}>⚠️ {error}</p>
           <button type="button" onClick={onBack} style={{ marginTop: '1.5rem', background: 'transparent', border: '1px solid #ff0055', color: '#ff0055', padding: '0.6rem 1.8rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800 }}>
-            ← VOLTAR
+            ← {t('userProfile.back').toUpperCase()}
           </button>
         </div>
       ) : profile ? (
@@ -285,17 +287,17 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         boxShadow: profile.role === 'admin' || profile.role === 'dev' ? '0 0 12px rgba(255, 0, 85, 0.3)' : '0 0 12px rgba(0, 255, 102, 0.3)'
                       }}
                     >
-                      {profile.role === 'dev' ? '🔧 DESENVOLVEDOR DO SISTEMA' : profile.role === 'admin' ? '⚡ ADMINISTRADOR GERAL' : '✨ MEMBRO DA COMUNIDADE'}
+                      {profile.role === 'dev' ? `🔧 ${t('userProfile.devBadge').toUpperCase()}` : profile.role === 'admin' ? `⚡ ${t('userProfile.adminBadge').toUpperCase()}` : `✨ ${t('userProfile.memberBadge').toUpperCase()}`}
                     </span>
                   </div>
 
                   <p style={{ color: '#ccc', fontSize: '1.05rem', margin: '0.75rem 0 0.5rem 0', maxWidth: '750px', lineHeight: 1.5, fontFamily: 'sans-serif' }}>
-                    {profile.bio || 'Olá! Sou um membro ativo do PrismShare.'}
+                    {profile.bio || ''}
                   </p>
 
                   <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.8rem', color: '#777', fontFamily: 'JetBrains Mono, monospace' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Calendar size={14} color="#a78bfa" /> Membro desde {formatDate(profile.createdAt)}
+                      <Calendar size={14} color="#a78bfa" /> {t('userProfile.memberSince', { date: formatDate(profile.createdAt) })}
                     </span>
                   </div>
                 </div>
@@ -307,21 +309,21 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                   <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace' }}>
                     {profile.stats ? profile.stats.postsCount : (profile.posts ? profile.posts.length : 0)}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.3rem', fontWeight: 800 }}>POSTS PUBLICADOS</div>
+                  <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.3rem', fontWeight: 800 }}>{t('userProfile.statPosts').toUpperCase()}</div>
                 </div>
 
                 <div style={{ background: '#0e0e0e', border: '1px solid #222', padding: '1rem 1.6rem', textAlign: 'center', minWidth: '120px', borderRadius: '6px' }}>
                   <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#ff0055', fontFamily: 'JetBrains Mono, monospace' }}>
                     {profile.stats ? profile.stats.likesReceived : 0}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.3rem', fontWeight: 800 }}>CURTIDAS RECEBIDAS</div>
+                  <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.3rem', fontWeight: 800 }}>{t('userProfile.statLikes').toUpperCase()}</div>
                 </div>
 
                 <div style={{ background: '#0e0e0e', border: '1px solid #222', padding: '1rem 1.6rem', textAlign: 'center', minWidth: '120px', borderRadius: '6px' }}>
                   <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#00ff66', fontFamily: 'JetBrains Mono, monospace' }}>
                     {profile.stats ? profile.stats.likedPostsCount : (profile.likedPosts ? profile.likedPosts.length : 0)}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.3rem', fontWeight: 800 }}>MÍDIAS FAVORITAS</div>
+                  <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.3rem', fontWeight: 800 }}>{t('userProfile.statFavorites').toUpperCase()}</div>
                 </div>
               </div>
 
@@ -350,7 +352,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                   transition: 'all 0.15s ease'
                 }}
               >
-                <ImageIcon size={18} /> POSTS PUBLICADOS ({profile.posts ? profile.posts.length : 0})
+                <ImageIcon size={18} /> {t('userProfile.tabPosts', { count: profile.posts ? profile.posts.length : 0 }).toUpperCase()}
               </button>
 
               <button
@@ -372,7 +374,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                   transition: 'all 0.15s ease'
                 }}
               >
-                <Heart size={18} /> CURTIDAS ({profile.likedPosts ? profile.likedPosts.length : 0})
+                <Heart size={18} /> {t('userProfile.tabLikes', { count: profile.likedPosts ? profile.likedPosts.length : 0 }).toUpperCase()}
               </button>
 
               {isOwner && (
@@ -395,7 +397,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <Settings size={18} /> EDITAR PERFIL & PRIVACIDADE
+                  <Settings size={18} /> {t('userProfile.tabSettings').toUpperCase()}
                 </button>
               )}
             </div>
@@ -405,7 +407,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
           <div style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '2.5rem', flex: 1 }}>
             {saveSuccess && (
               <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', color: '#00ff66', padding: '1rem 1.5rem', marginBottom: '2rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: '4px' }}>
-                <Check size={20} /> SEU PERFIL E CONFIGURAÇÕES DE PRIVACIDADE FORAM ATUALIZADOS COM SUCESSO!
+                <Check size={20} /> {t('userProfile.saveSuccess')}
               </div>
             )}
 
@@ -413,17 +415,17 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
               <div style={{ background: '#0e0e0e', border: '1px solid #222', padding: '2.5rem', maxWidth: '800px', borderRadius: '8px' }}>
                 <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#fff', fontFamily: 'JetBrains Mono, monospace', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
-                    ⚙️ CONFIGURAÇÕES DA SUA CONTA PRISMSHARE
+                    ⚙️ {t('userProfile.settingsTitle').toUpperCase()}
                   </h3>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.5rem' }}>
-                      FOTO DE PERFIL / AVATAR:
+                      {t('userProfile.avatarLabel').toUpperCase()}:
                     </label>
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                       <input
                         type="text"
-                        placeholder="Cole a URL ou clique em escolher do PC ->"
+                        placeholder={t('userProfile.avatarUrlPlaceholder')}
                         value={avatarUrl}
                         onChange={(e) => setAvatarUrl(e.target.value)}
                         style={{
@@ -455,7 +457,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         borderRadius: '4px',
                         whiteSpace: 'nowrap'
                       }}>
-                        {uploadingAvatar ? '⏳ ENVIANDO (GRÁTIS)...' : '📁 ESCOLHER & RECORTAR'}
+                        {uploadingAvatar ? t('userProfile.uploadingFree') : `📁 ${t('userProfile.chooseCrop').toUpperCase()}`}
                         <input
                           type="file"
                           accept="image/*"
@@ -466,18 +468,18 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                       </label>
                     </div>
                     <p style={{ fontSize: '0.75rem', color: '#666', margin: '0.4rem 0 0 0', fontFamily: 'JetBrains Mono, monospace' }}>
-                      ✨ 100% Gratuito! Com recorte interativo, zoom automotimizado e compatível com links locais e da internet.
+                      {t('userProfile.avatarHint')}
                     </p>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.5rem' }}>
-                      BANNER DE FUNDO (TOPO DO PERFIL):
+                      {t('userProfile.bannerLabel').toUpperCase()}:
                     </label>
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                       <input
                         type="text"
-                        placeholder="Cole a URL ou clique no botão ao lado ->"
+                        placeholder={t('userProfile.bannerUrlPlaceholder')}
                         value={bannerUrl}
                         onChange={(e) => setBannerUrl(e.target.value)}
                         style={{
@@ -509,7 +511,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         borderRadius: '4px',
                         whiteSpace: 'nowrap'
                       }}>
-                        {uploadingBanner ? '⏳ ENVIANDO (GRÁTIS)...' : '📁 ESCOLHER & RECORTAR'}
+                        {uploadingBanner ? t('userProfile.uploadingFree') : `📁 ${t('userProfile.chooseCrop').toUpperCase()}`}
                         <input
                           type="file"
                           accept="image/*"
@@ -520,17 +522,17 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                       </label>
                     </div>
                     <p style={{ fontSize: '0.75rem', color: '#666', margin: '0.4rem 0 0 0', fontFamily: 'JetBrains Mono, monospace' }}>
-                      Recomendado: imagens widescreen ou paisagem (com recorte/zoom integrado).
+                      {t('userProfile.bannerHint')}
                     </p>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.5rem' }}>
-                      SUA BIOGRAFIA / APRESENTAÇÃO:
+                      {t('userProfile.bioLabel').toUpperCase()}:
                     </label>
                     <textarea
                       rows="4"
-                      placeholder="Fale um pouco sobre você, seus artistas favoritos, estilos, redes sociais..."
+                      placeholder={t('userProfile.bioPlaceholder')}
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       style={{
@@ -551,7 +553,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                   {/* Privacy Configs */}
                   <div style={{ background: '#121212', border: '1px solid #222', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', borderRadius: '6px' }}>
                     <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#00ff66', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Lock size={18} /> CONFIGURAÇÕES DE PRIVACIDADE DO SEU PERFIL
+                      <Lock size={18} /> {t('userProfile.privacyTitle').toUpperCase()}
                     </div>
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.9rem', color: '#ccc' }}>
@@ -561,7 +563,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         onChange={(e) => setShowPosts(e.target.checked)}
                         style={{ width: '20px', height: '20px', accentColor: '#a78bfa', cursor: 'pointer' }}
                       />
-                      <span>Mostrar meus posts publicados publicamente para outros membros</span>
+                      <span>{t('userProfile.privacyShowPosts')}</span>
                     </label>
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.9rem', color: '#ccc' }}>
@@ -571,7 +573,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         onChange={(e) => setShowLikes(e.target.checked)}
                         style={{ width: '20px', height: '20px', accentColor: '#ff0055', cursor: 'pointer' }}
                       />
-                      <span>Mostrar minha lista de curtidas/favoritos publicamente na aba de curtidas</span>
+                      <span>{t('userProfile.privacyShowLikes')}</span>
                     </label>
                   </div>
 
@@ -592,7 +594,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         borderRadius: '4px'
                       }}
                     >
-                      {saving ? 'SALVANDO DADOS...' : '💾 SALVAR ALTERAÇÕES'}
+                      {saving ? t('userProfile.saving').toUpperCase() : `💾 ${t('userProfile.saveChanges').toUpperCase()}`}
                     </button>
                     <button
                       type="button"
@@ -609,7 +611,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                         borderRadius: '4px'
                       }}
                     >
-                      CANCELAR
+                      {t('userProfile.cancel').toUpperCase()}
                     </button>
                   </div>
                 </form>
@@ -619,8 +621,8 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                 {profile.privacy && !profile.privacy.showPosts && !isOwner ? (
                   <div style={{ padding: '5rem 2rem', textAlign: 'center', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace', borderRadius: '8px' }}>
                     <Lock size={40} style={{ margin: '0 auto 1.2rem auto', color: '#a78bfa' }} />
-                    <p style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>Postagens Privadas</p>
-                    <p style={{ fontSize: '0.95rem', color: '#777' }}>O usuário @{profile.username} configurou a privacidade para não exibir suas publicações de forma pública.</p>
+                    <p style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>{t('userProfile.privatePostsTitle')}</p>
+                    <p style={{ fontSize: '0.95rem', color: '#777' }}>{t('userProfile.privatePostsText')}</p>
                   </div>
                 ) : profile.posts && profile.posts.length > 0 ? (
                   <div className="masonry-grid">
@@ -639,10 +641,10 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                 ) : (
                   <div style={{ padding: '5rem 2rem', textAlign: 'center', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace', borderRadius: '8px' }}>
                     <ImageIcon size={40} style={{ margin: '0 auto 1.2rem auto', color: '#444' }} />
-                    <p style={{ fontSize: '1.15rem', color: '#aaa', fontWeight: 800 }}>Este usuário ainda não publicou nenhuma mídia na plataforma.</p>
+                    <p style={{ fontSize: '1.15rem', color: '#aaa', fontWeight: 800 }}>{t('userProfile.emptyPostsTitle')}</p>
                     {isOwner && (
                       <button type="button" onClick={onOpenUpload} style={{ marginTop: '1.25rem', background: '#a78bfa', color: '#000', border: 'none', padding: '0.75rem 1.8rem', fontFamily: 'JetBrains Mono, monospace', fontWeight: 900, cursor: 'pointer', borderRadius: '4px' }}>
-                        + ENVIAR PRIMEIRA MÍDIA
+                        + {t('userProfile.uploadFirst').toUpperCase()}
                       </button>
                     )}
                   </div>
@@ -653,8 +655,8 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                 {profile.privacy && !profile.privacy.showLikes && !isOwner ? (
                   <div style={{ padding: '5rem 2rem', textAlign: 'center', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace', borderRadius: '8px' }}>
                     <Lock size={40} style={{ margin: '0 auto 1.2rem auto', color: '#ff0055' }} />
-                    <p style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>Curtidas Privadas</p>
-                    <p style={{ fontSize: '0.95rem', color: '#777' }}>O usuário @{profile.username} configurou sua lista de mídias favoritas como confidencial.</p>
+                    <p style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>{t('userProfile.privateLikesTitle')}</p>
+                    <p style={{ fontSize: '0.95rem', color: '#777' }}>{t('userProfile.privateLikesText')}</p>
                   </div>
                 ) : profile.likedPosts && profile.likedPosts.length > 0 ? (
                   <div className="masonry-grid">
@@ -673,7 +675,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                 ) : (
                   <div style={{ padding: '5rem 2rem', textAlign: 'center', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace', borderRadius: '8px' }}>
                     <Heart size={40} style={{ margin: '0 auto 1.2rem auto', color: '#444' }} />
-                    <p style={{ fontSize: '1.15rem', color: '#aaa', fontWeight: 800 }}>Nenhuma mídia favoritada por @{profile.username} até o momento.</p>
+                    <p style={{ fontSize: '1.15rem', color: '#aaa', fontWeight: 800 }}>{t('userProfile.emptyLikesTitle')}</p>
                   </div>
                 )}
               </div>

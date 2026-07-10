@@ -17,6 +17,7 @@ import {
   Trophy,
   Server
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 function formatUptime(seconds) {
   const h = Math.floor(seconds / 3600);
@@ -152,6 +153,8 @@ function DistributionBar({ label, count, total, color }) {
 }
 
 export default function DevPanel({ currentUser, stats, onBack }) {
+  const { t } = useLanguage();
+
   if (!stats) {
     return (
       <div
@@ -165,7 +168,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
           borderRadius: 0,
         }}
       >
-        Carregando dados do painel...
+        {t('common.loading').toUpperCase()}
       </div>
     );
   }
@@ -213,7 +216,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
             height: '34px',
             boxSizing: 'border-box',
           }}
-          title="Voltar"
+          title={t('common.back')}
         >
           <ArrowLeft size={16} />
         </button>
@@ -227,7 +230,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
             textTransform: 'uppercase',
           }}
         >
-          Painel do Desenvolvedor
+          {t('dev.title').toUpperCase()}
         </span>
         <span
           style={{
@@ -250,15 +253,15 @@ export default function DevPanel({ currentUser, stats, onBack }) {
             marginBottom: '1.5rem',
           }}
         >
-          <StatCard icon={Image} value={stats.totalPosts} label="Total de midias" />
-          <StatCard icon={Users} value={stats.totalUsers} label="Usuarios registrados" />
-          <StatCard icon={Eye} value={stats.totalViews} label="Visualizacoes totais" />
-          <StatCard icon={Heart} value={stats.totalLikes} label="Curtidas totais" />
-          <StatCard icon={MessageSquare} value={stats.totalComments} label="Comentarios" />
+          <StatCard icon={Image} value={stats.totalPosts} label={t('dev.statPosts').toUpperCase()} />
+          <StatCard icon={Users} value={stats.totalUsers} label={t('dev.statUsers').toUpperCase()} />
+          <StatCard icon={Eye} value={stats.totalViews} label={t('dev.statViews').toUpperCase()} />
+          <StatCard icon={Heart} value={stats.totalLikes} label={t('dev.statLikes').toUpperCase()} />
+          <StatCard icon={MessageSquare} value={stats.totalComments} label={t('dev.statComments').toUpperCase()} />
           <StatCard
             icon={AlertTriangle}
             value={stats.totalBanned}
-            label="Midias banidas"
+            label={t('dev.statBanned').toUpperCase()}
             iconColor="#ff0055"
           />
         </div>
@@ -281,7 +284,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               borderRadius: 0,
             }}
           >
-            <SectionHeader icon={BarChart3} label="Distribuicao por tipo" />
+            <SectionHeader icon={BarChart3} label={t('dev.statsTitle').toUpperCase()} />
             <DistributionBar
               label="Imagem"
               count={postsByType.image}
@@ -311,7 +314,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               borderRadius: 0,
             }}
           >
-            <SectionHeader icon={Hash} label="Top Tags" />
+            <SectionHeader icon={Hash} label={t('dev.tagsTitle').toUpperCase()} />
             <div
               style={{
                 display: 'flex',
@@ -334,7 +337,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               ))}
               {topTags.length === 0 && (
                 <span style={{ color: '#444444', fontSize: '0.75rem' }}>
-                  Nenhuma tag encontrada
+                  {t('dev.noTags')}
                 </span>
               )}
             </div>
@@ -358,7 +361,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               borderRadius: 0,
             }}
           >
-            <SectionHeader icon={Trophy} label="Posts mais populares" />
+            <SectionHeader icon={Trophy} label={t('dev.topPostsTitle').toUpperCase()} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {topPosts.map((post, i) => (
                 <div
@@ -432,7 +435,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               ))}
               {topPosts.length === 0 && (
                 <span style={{ color: '#444444', fontSize: '0.75rem' }}>
-                  Nenhum post encontrado
+                  {t('dev.noPosts')}
                 </span>
               )}
             </div>
@@ -447,7 +450,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               borderRadius: 0,
             }}
           >
-            <SectionHeader icon={Server} label="Info do sistema" />
+            <SectionHeader icon={Server} label={t('dev.systemStatus').toUpperCase()} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <InfoRow
                 icon={Cpu}
@@ -461,7 +464,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               />
               <InfoRow
                 icon={Database}
-                label="Memoria"
+                label="RAM / Memória"
                 value={
                   stats.memoryUsage != null ? formatMB(stats.memoryUsage) : '—'
                 }
@@ -475,7 +478,7 @@ export default function DevPanel({ currentUser, stats, onBack }) {
               />
               <InfoRow
                 icon={AlertTriangle}
-                label="Midias banidas"
+                label={t('dev.statBanned')}
                 value={
                   stats.totalBanned != null
                     ? stats.totalBanned.toLocaleString('pt-BR')

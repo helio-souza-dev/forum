@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, AlertTriangle, Users, FileText, ArrowLeft, Ban, CheckCircle, Clock, ChevronDown, Eye, Heart, Image, Film, X } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const FONT = 'JetBrains Mono, monospace';
 
@@ -9,15 +10,10 @@ const ROLE_COLORS = {
   user: '#888888'
 };
 
-const ROLE_LABELS = {
-  dev: 'DEV',
-  admin: 'ADMIN',
-  user: 'USUARIO'
-};
-
 function RoleBadge({ role }) {
+  const { t } = useLanguage();
   const color = ROLE_COLORS[role] || '#888';
-  const label = ROLE_LABELS[role] || role?.toUpperCase() || 'N/A';
+  const label = role === 'dev' ? t('admin.roleDev').toUpperCase() : role === 'admin' ? t('admin.roleAdmin').toUpperCase() : role === 'user' ? t('admin.roleUser').toUpperCase() : role?.toUpperCase() || 'N/A';
   return (
     <span style={{
       display: 'inline-flex',
@@ -38,8 +34,9 @@ function RoleBadge({ role }) {
 }
 
 function StatusBadge({ banned }) {
+  const { t } = useLanguage();
   const color = banned ? '#ff0055' : '#00ff66';
-  const label = banned ? 'BANIDO' : 'ATIVO';
+  const label = banned ? t('admin.filterBanned').toUpperCase() : t('admin.filterActive').toUpperCase();
   return (
     <span style={{
       display: 'inline-flex',
@@ -62,6 +59,7 @@ function StatusBadge({ banned }) {
 }
 
 function BanModal({ post, onConfirm, onCancel }) {
+  const { t } = useLanguage();
   const [reason, setReason] = useState('');
 
   return (
@@ -111,7 +109,7 @@ function BanModal({ post, onConfirm, onCancel }) {
             color: '#ff0055'
           }}>
             <AlertTriangle size={18} color="#ff0055" />
-            <span>CONFIRMAR BANIMENTO</span>
+            <span>{t('admin.banConfirmTitle').toUpperCase()}</span>
           </div>
           <button
             onClick={onCancel}
@@ -144,7 +142,7 @@ function BanModal({ post, onConfirm, onCancel }) {
           gap: '0.5rem'
         }}>
           <Ban size={14} />
-          <span>Midia alvo: <strong style={{ color: '#fff' }}>{post?.title || 'Sem titulo'}</strong></span>
+          <span>{t('admin.banTarget', { title: post?.title || 'Sem título' })}</span>
         </div>
 
         {/* Form */}
@@ -157,12 +155,12 @@ function BanModal({ post, onConfirm, onCancel }) {
               color: '#aaa',
               textTransform: 'uppercase'
             }}>
-              Motivo do banimento
+              {t('admin.banReasonLabel').toUpperCase()}
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Descreva o motivo do banimento desta midia..."
+              placeholder={t('admin.banReasonPlaceholder')}
               rows={4}
               style={{
                 width: '100%',
@@ -206,7 +204,7 @@ function BanModal({ post, onConfirm, onCancel }) {
                 textTransform: 'uppercase'
               }}
             >
-              CANCELAR
+              {t('common.cancel').toUpperCase()}
             </button>
             <button
               onClick={() => onConfirm(reason)}
@@ -230,7 +228,7 @@ function BanModal({ post, onConfirm, onCancel }) {
               }}
             >
               <Ban size={13} />
-              CONFIRMAR BANIMENTO
+              {t('admin.banSubmit').toUpperCase()}
             </button>
           </div>
         </div>
@@ -249,6 +247,7 @@ export default function AdminPanel({
   onSetUserRole,
   auditLog = []
 }) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('midias');
   const [mediaFilter, setMediaFilter] = useState('todas');
   const [banTarget, setBanTarget] = useState(null);
@@ -321,15 +320,15 @@ export default function AdminPanel({
   };
 
   const tabs = [
-    { key: 'midias', label: 'MIDIAS', icon: <Image size={15} /> },
-    { key: 'usuarios', label: 'USUARIOS', icon: <Users size={15} /> },
-    { key: 'auditoria', label: 'LOG DE AUDITORIA', icon: <FileText size={15} /> }
+    { key: 'midias', label: t('admin.tabMedia').toUpperCase(), icon: <Image size={15} /> },
+    { key: 'usuarios', label: t('admin.tabUsers').toUpperCase(), icon: <Users size={15} /> },
+    { key: 'auditoria', label: t('admin.tabAudit').toUpperCase(), icon: <FileText size={15} /> }
   ];
 
   const filterButtons = [
-    { key: 'todas', label: 'TODAS' },
-    { key: 'ativas', label: 'ATIVAS' },
-    { key: 'banidas', label: 'BANIDAS' }
+    { key: 'todas', label: t('admin.filterAll').toUpperCase() },
+    { key: 'ativas', label: t('admin.filterActive').toUpperCase() },
+    { key: 'banidas', label: t('admin.filterBanned').toUpperCase() }
   ];
 
   const tableHeaderStyle = {
@@ -403,7 +402,7 @@ export default function AdminPanel({
             e.currentTarget.style.boxShadow = 'none';
             e.currentTarget.style.transform = 'none';
           }}
-          title="Voltar ao feed"
+          title={t('common.back')}
         >
           <ArrowLeft size={20} />
         </button>
@@ -416,7 +415,7 @@ export default function AdminPanel({
             letterSpacing: '0.05em',
             textTransform: 'uppercase'
           }}>
-            PAINEL DE ADMINISTRACAO
+            {t('admin.title').toUpperCase()}
           </span>
         </div>
         {currentUser && (
@@ -428,7 +427,7 @@ export default function AdminPanel({
             fontSize: '0.8rem',
             color: '#888'
           }}>
-            <span>OPERADOR:</span>
+            <span>{t('admin.colUser').toUpperCase()}:</span>
             <span style={{ color: '#a78bfa', fontWeight: 800 }}>@{currentUser.username}</span>
             <RoleBadge role={currentUser.role} />
           </div>
@@ -560,13 +559,13 @@ export default function AdminPanel({
               }}>
                 <thead>
                   <tr>
-                    <th style={tableHeaderStyle}>PREVIEW</th>
-                    <th style={tableHeaderStyle}>TITULO</th>
+                    <th style={tableHeaderStyle}>{t('admin.colThumb').toUpperCase()}</th>
+                    <th style={tableHeaderStyle}>{t('admin.colInfo').toUpperCase()}</th>
                     <th style={tableHeaderStyle}>TIPO</th>
                     <th style={tableHeaderStyle}>VIEWS</th>
                     <th style={tableHeaderStyle}>LIKES</th>
-                    <th style={tableHeaderStyle}>STATUS</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>ACOES</th>
+                    <th style={tableHeaderStyle}>{t('admin.colStatus').toUpperCase()}</th>
+                    <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>{t('admin.colActions').toUpperCase()}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -578,7 +577,7 @@ export default function AdminPanel({
                         padding: '3rem 1rem',
                         color: '#555'
                       }}>
-                        Nenhuma midia encontrada neste filtro.
+                        {t('admin.noMedia')}
                       </td>
                     </tr>
                   )}
@@ -720,7 +719,7 @@ export default function AdminPanel({
                               }}
                             >
                               <CheckCircle size={12} />
-                              UNBAN
+                              {t('admin.unbanSubmit').toUpperCase()}
                             </button>
                           ) : (
                             <button
@@ -751,7 +750,7 @@ export default function AdminPanel({
                               }}
                             >
                               <Ban size={12} />
-                              BAN
+                              {t('admin.banSubmit').toUpperCase()}
                             </button>
                           )}
                         </td>
@@ -777,7 +776,7 @@ export default function AdminPanel({
               color: '#888'
             }}>
               <Users size={16} color="#a78bfa" />
-              <span>TOTAL DE USUARIOS REGISTRADOS:</span>
+              <span>{t('admin.tabUsers').toUpperCase()}:</span>
               <span style={{ color: '#a78bfa', fontWeight: 800 }}>{users.length}</span>
             </div>
 
@@ -785,11 +784,11 @@ export default function AdminPanel({
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={tableHeaderStyle}>USUARIO</th>
-                    <th style={tableHeaderStyle}>ROLE</th>
-                    <th style={tableHeaderStyle}>DATA DE CRIACAO</th>
+                    <th style={tableHeaderStyle}>{t('admin.colUser').toUpperCase()}</th>
+                    <th style={tableHeaderStyle}>{t('admin.colRole').toUpperCase()}</th>
+                    <th style={tableHeaderStyle}>{t('admin.colCreated').toUpperCase()}</th>
                     {currentUser?.role === 'dev' && (
-                      <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>ACOES</th>
+                      <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>{t('admin.colActions').toUpperCase()}</th>
                     )}
                   </tr>
                 </thead>
@@ -802,7 +801,7 @@ export default function AdminPanel({
                         padding: '3rem 1rem',
                         color: '#555'
                       }}>
-                        Nenhum usuario encontrado.
+                        {t('admin.noUsers')}
                       </td>
                     </tr>
                   )}
@@ -908,7 +907,7 @@ export default function AdminPanel({
                                           display: 'inline-block',
                                           flexShrink: 0
                                         }} />
-                                        {ROLE_LABELS[role]}
+                                        {role === 'dev' ? t('admin.roleDev').toUpperCase() : role === 'admin' ? t('admin.roleAdmin').toUpperCase() : t('admin.roleUser').toUpperCase()}
                                       </button>
                                     ))}
                                   </div>
@@ -941,7 +940,7 @@ export default function AdminPanel({
               color: '#888'
             }}>
               <Clock size={16} color="#a78bfa" />
-              <span>HISTORICO DE ACOES ADMINISTRATIVAS</span>
+              <span>{t('admin.tabAudit').toUpperCase()}</span>
               <span style={{
                 marginLeft: 'auto',
                 color: '#555',
@@ -963,7 +962,7 @@ export default function AdminPanel({
                   fontFamily: FONT,
                   fontSize: '0.85rem'
                 }}>
-                  Nenhum registro de auditoria encontrado.
+                  {t('admin.noLogs')}
                 </div>
               )}
               {auditLog.map((entry, idx) => {

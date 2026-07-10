@@ -12,8 +12,10 @@ import AdminPanel from './components/AdminPanel';
 import DevPanel from './components/DevPanel';
 import UserProfilePage from './components/UserProfilePage';
 import { ChevronLeft, ChevronRight, ChevronsLeft, PlusCircle, Terminal } from 'lucide-react';
+import { useLanguage } from './i18n/LanguageContext';
 
 export default function App() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [posts, setPosts] = useState([]);
@@ -497,7 +499,7 @@ export default function App() {
         const newLocalPost = await res.json();
         fetchTags();
         fetchPosts();
-        alert(`Mídia "${externalPost.title}" importada permanentemente para o seu Feed Local com sucesso!`);
+        alert(t('app.importSuccess', { title: externalPost.title }));
         if (selectedPostForModal && selectedPostForModal.id === externalPost.id) {
           setSelectedPostForModal(newLocalPost);
         }
@@ -507,7 +509,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Erro na importação:', err);
-      alert(`Erro: Não foi possível importar o post: ${err.message}`);
+      alert(t('app.importError', { message: err.message }));
     } finally {
       setImportingIds(prev => prev.filter(id => id !== externalPost.id));
     }
@@ -597,12 +599,12 @@ export default function App() {
             {/* Top Info Bar with Quick Page indicator */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
               <span className="font-mono" style={{ fontSize: '0.85rem', color: '#888' }}>
-                RESULTADOS BOORU ({selectedBooruSite.toUpperCase()}): <strong style={{ color: '#a78bfa' }}>{safeBooruPosts.length}</strong> ITENS EXIBIDOS | PÁGINA ATUAL: <strong style={{ color: '#fff', backgroundColor: '#1a1a1a', padding: '0.2rem 0.6rem', border: '1px solid #a78bfa' }}>#{booruPage}</strong>
+                {t('app.booruResultsHeader', { site: selectedBooruSite.toUpperCase() })} <strong style={{ color: '#a78bfa' }}>{safeBooruPosts.length}</strong> {t('app.booruResultsCount')} | {t('app.booruResultsPage')} <strong style={{ color: '#fff', backgroundColor: '#1a1a1a', padding: '0.2rem 0.6rem', border: '1px solid #a78bfa' }}>#{booruPage}</strong>
               </span>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <span style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'JetBrains Mono, monospace', marginRight: '0.5rem' }}>
-                  NAVEGAÇÃO RÁPIDA:
+                  {t('app.quickNavLabel')}
                 </span>
                 <button
                   type="button"
@@ -619,7 +621,7 @@ export default function App() {
                   }}
                   title="Ir para Primeira Página (Mais Recentes)"
                 >
-                  &lt;&lt; PÁG 1
+                  {t('app.firstPageShort')}
                 </button>
                 <button
                   type="button"
@@ -635,7 +637,7 @@ export default function App() {
                     cursor: booruPage === 1 ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  &lt; ANTERIOR
+                  {t('app.prevShort')}
                 </button>
                 <button
                   type="button"
@@ -652,23 +654,23 @@ export default function App() {
                     cursor: booruLoading ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  PRÓXIMA &gt;
+                  {t('app.nextShort')}
                 </button>
               </div>
             </div>
 
             {booruLoading ? (
               <div style={{ textAlign: 'center', padding: '6rem 0', fontFamily: 'JetBrains Mono, monospace', color: '#a78bfa' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>CONECTANDO À API E CARREGANDO PÁGINA #{booruPage}...</div>
-                <div style={{ color: '#666', fontSize: '0.85rem' }}>Buscando vídeos e imagens via @himeka/booru + HTML Scraper e preparando proxy de streaming.</div>
+                <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>{t('app.loadingBooruTitle', { page: booruPage })}</div>
+                <div style={{ color: '#666', fontSize: '0.85rem' }}>{t('app.loadingBooruDesc')}</div>
               </div>
             ) : safeBooruPosts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '6rem 1rem', border: '1px dashed #333', backgroundColor: '#050505' }}>
                 <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', fontFamily: 'JetBrains Mono, monospace', color: '#fff' }}>
-                  NENHUMA MÍDIA ENCONTRADA NESSE BOORU OU PÁGINA #{booruPage}
+                  {t('app.emptyBooruTitle', { page: booruPage })}
                 </h3>
                 <p style={{ color: '#888', maxWidth: '400px', margin: '0 auto 1.5rem', fontSize: '0.9rem' }}>
-                  Tente voltar para páginas anteriores ou buscar outras tags (ex: <code style={{ color: '#a78bfa' }}>cyberpunk</code>, <code style={{ color: '#a78bfa' }}>animated</code>)!
+                  {t('app.emptyBooruDesc')}
                 </p>
                 {booruPage > 1 && (
                   <button
@@ -684,7 +686,7 @@ export default function App() {
                       cursor: 'pointer'
                     }}
                   >
-                    &lt;&lt; VOLTAR PARA A PÁGINA 1
+                    {t('app.backToFirstBtn')}
                   </button>
                 )}
               </div>
@@ -709,7 +711,7 @@ export default function App() {
                 {/* BOTÕES NUMÉRICOS DE PAGINAÇÃO COMPLETA */}
                 <div style={{ marginTop: '3.5rem', marginBottom: '3rem', borderTop: '1px solid #222', paddingTop: '2rem' }}>
                   <div style={{ textAlign: 'center', marginBottom: '1rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#888' }}>
-                    NAVEGAR ENTRE AS PÁGINAS DO BOORU (MAIS NOVOS &lt;=&gt; MAIS ANTIGOS):
+                    {t('app.fullNavTitle')}
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -732,7 +734,7 @@ export default function App() {
                       }}
                       title="Ir para o início (Página 1)"
                     >
-                      <ChevronsLeft size={16} /> PÁG 1 (INÍCIO)
+                      <ChevronsLeft size={16} /> {t('app.firstPageLong')}
                     </button>
 
                     {/* Página Anterior */}
@@ -753,7 +755,7 @@ export default function App() {
                         gap: '0.3rem'
                       }}
                     >
-                      <ChevronLeft size={16} /> ANTERIOR
+                      <ChevronLeft size={16} /> {t('app.prevLong')}
                     </button>
 
                     {/* Botões numéricos centrados na página atual */}
@@ -802,7 +804,7 @@ export default function App() {
                         gap: '0.3rem'
                       }}
                     >
-                      PRÓXIMA <ChevronRight size={16} />
+                      {t('app.nextLong')} <ChevronRight size={16} />
                     </button>
 
                     {/* Botão de somar / acumular mais na mesma página caso queira */}
@@ -823,10 +825,10 @@ export default function App() {
                         gap: '0.4rem',
                         marginLeft: '0.5rem'
                       }}
-                      title="Soma os vídeos da próxima página logo abaixo da grade atual"
+                      title={t('app.plusLoadMoreTitle')}
                     >
                       <PlusCircle size={15} />
-                      {loadingMore ? 'SOMANDO...' : '+ SOMAR NA MESMA TELA'}
+                      {loadingMore ? t('app.plusLoading') : t('app.plusBtn')}
                     </button>
                   </div>
                 </div>
@@ -837,7 +839,7 @@ export default function App() {
           <div style={{ width: '100%' }}>
             {adminLoading ? (
               <div style={{ textAlign: 'center', padding: '6rem 0', fontFamily: 'JetBrains Mono, monospace', color: '#a78bfa' }}>
-                Carregando dados de moderação...
+                {t('app.adminLoading')}
               </div>
             ) : (
               <AdminPanel
@@ -856,7 +858,7 @@ export default function App() {
           <div style={{ width: '100%' }}>
             {devLoading ? (
               <div style={{ textAlign: 'center', padding: '6rem 0', fontFamily: 'JetBrains Mono, monospace', color: '#a78bfa' }}>
-                Carregando estatísticas do sistema...
+                {t('app.devLoading')}
               </div>
             ) : (
               <DevPanel

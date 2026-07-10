@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { X, Heart, Eye, Film, Image as ImageIcon, Zap, Hash, MessageSquare, Send, Calendar, Download, Globe } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function CinemaModal({ post, onClose, onLike, onTagClick, onCommentAdd, onImportPost, importingIds = [], currentUser = null, onRequireAuth, onOpenProfile }) {
+  const { t } = useLanguage();
   if (!post) return null;
 
   const videoRef = useRef(null);
@@ -378,14 +380,14 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                     cursor: 'pointer'
                   }}
                 >
-                  👤 ARTISTA / AUTOR: @{post.author || post.uploader || post.siteName.split(' ')[0]}
+                  👤 {t('cinemaModal.byAuthor', { author: post.author || post.uploader || post.siteName.split(' ')[0] }).toUpperCase()}
                 </div>
               )}
             </div>
             
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', fontSize: '0.8rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', borderBottom: '1px solid #1f1f1f', paddingBottom: '1rem', marginBottom: '1rem' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Eye size={14} color="#a78bfa" /> {post.views !== undefined ? post.views : 0} VISUALIZAÇÕES
+                <Eye size={14} color="#a78bfa" /> {t('cinemaModal.views', { count: post.views !== undefined ? post.views : 0 }).toUpperCase()}
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <Calendar size={14} /> {formatDate(post.createdAt || new Date())}
@@ -397,7 +399,7 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                   rel="noreferrer"
                   style={{ color: '#00ff66', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 800 }}
                 >
-                  🔗 Post / Perfil do Artista ({post.source.includes('x.com') || post.source.includes('twitter') ? 'Twitter/X' : post.source.includes('pixiv') ? 'Pixiv' : 'Fonte Original'})
+                  🔗 {t('cinemaModal.sourceLink', { provider: post.source.includes('x.com') || post.source.includes('twitter') ? 'Twitter/X' : post.source.includes('pixiv') ? 'Pixiv' : 'Web' })}
                 </a>
               )}
               {post.external && post.rawUrl && (
@@ -407,7 +409,7 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                   rel="noreferrer"
                   style={{ color: '#a78bfa', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                 >
-                  <Globe size={13} /> Link Original da Plataforma
+                  <Globe size={13} /> {t('cinemaModal.externalLink')}
                 </a>
               )}
             </div>
@@ -449,7 +451,7 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                     style={{ padding: '0.75rem 1.75rem', backgroundColor: '#a78bfa', color: '#000000', borderColor: '#a78bfa', fontWeight: 800, cursor: isImporting ? 'wait' : 'pointer' }}
                   >
                     <Download size={16} />
-                    <span>{isImporting ? 'SALVANDO EM MEU FEED LOCAL...' : '+ SALVAR PERMANENTEMENTE EM MEU FEED LOCAL'}</span>
+                    <span>{isImporting ? t('cinemaModal.importing').toUpperCase() : t('cinemaModal.importSave').toUpperCase()}</span>
                   </button>
                 ) : (
                   <>
@@ -466,7 +468,7 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                       }}
                     >
                       <Heart size={16} fill={(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? 'currentColor' : 'none'} color={(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#000' : '#a78bfa'} />
-                      <span>{(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? 'CURTIDO' : 'CURTIR MÍDIA'} ({post.likes !== undefined ? post.likes : 0})</span>
+                      <span>{(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? t('cinemaModal.liked', { count: post.likes !== undefined ? post.likes : 0 }).toUpperCase() : t('cinemaModal.like', { count: post.likes !== undefined ? post.likes : 0 }).toUpperCase()}</span>
                     </button>
 
                     <button
@@ -479,14 +481,14 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                       style={{ padding: '0.75rem 1.5rem', fontWeight: 800, cursor: 'pointer', backgroundColor: '#1a1a1a', color: '#fff', borderColor: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                     >
                       <MessageSquare size={16} color="#a78bfa" />
-                      <span>COMENTAR ({safeComments.length})</span>
+                      <span>{t('cinemaModal.commentsBtn', { count: safeComments.length }).toUpperCase()}</span>
                     </button>
                   </>
                 )}
               </div>
             ) : (
               <div style={{ borderBottom: '1px solid #1f1f1f', paddingBottom: '1rem', color: '#ff0055', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', fontWeight: 800 }}>
-                [ INTERAÇÕES E CURTIDAS DESATIVADAS PARA ESTA MÍDIA BANIDA ]
+                {t('cinemaModal.bannedInteractions')}
               </div>
             )}
           </div>
@@ -495,26 +497,26 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
           {!post.banned ? (
             <div id="comments-section-anchor" className="comments-section" style={{ borderTop: 'none', paddingTop: '0' }}>
               <h3 style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1rem', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <MessageSquare size={16} /> COMENTÁRIOS ({safeComments.length})
+                <MessageSquare size={16} /> {t('cinemaModal.commentsTitle', { count: safeComments.length }).toUpperCase()}
               </h3>
 
               {!currentUser ? (
                 <div style={{ backgroundColor: '#0a0a0a', border: '1px dashed #a78bfa', padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#aaa' }}>
-                    FAÇA LOGIN PARA PARTICIPAR DOS COMENTÁRIOS OU CURTIR ESTA MÍDIA
+                    {t('cinemaModal.loginPrompt').toUpperCase()}
                   </div>
                   <button
                     type="button"
                     onClick={() => onRequireAuth && onRequireAuth()}
                     style={{ background: '#a78bfa', color: '#000000', border: 'none', padding: '0.65rem 1.25rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 900, cursor: 'pointer', textTransform: 'uppercase' }}
                   >
-                    ENTRAR OU CRIAR CONTA AGORA
+                    {t('cinemaModal.loginAction').toUpperCase()}
                   </button>
                 </div>
               ) : (
                 <form id="comment-form-box" onSubmit={handleCommentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', backgroundColor: '#060606', padding: '1rem', border: '1px solid #1f1f1f' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', color: '#00ff66' }}>
-                    <span>COMENTANDO COMO:</span>
+                    <span>{t('cinemaModal.commentingAs')}</span>
                     <strong style={{ background: '#0a1a1c', padding: '0.2rem 0.5rem', border: '1px solid #00ff66' }}>@{currentUser.username}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -522,13 +524,13 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                       type="text"
                       className="form-input"
                       style={{ flex: 1, minWidth: '200px', fontSize: '0.85rem', background: '#0a0a0a', border: '1px solid #222', color: '#fff', padding: '0.6rem 0.8rem' }}
-                      placeholder="Escreva seu comentário aqui..."
+                      placeholder={t('cinemaModal.commentPlaceholder')}
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       required
                     />
                     <button type="submit" className="btn btn-accent" disabled={sendingComment} style={{ padding: '0.6rem 1.25rem', fontWeight: 800 }}>
-                      <Send size={15} /> {sendingComment ? 'ENVIANDO...' : 'ENVIAR'}
+                      <Send size={15} /> {sendingComment ? t('cinemaModal.sending').toUpperCase() : t('cinemaModal.send').toUpperCase()}
                     </button>
                   </div>
                 </form>
@@ -537,7 +539,7 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
                 {safeComments.length === 0 ? (
                   <div style={{ color: '#666', fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace', padding: '1.25rem', textAlign: 'center', border: '1px dashed #1f1f1f' }}>
-                    [ Nenhum comentário até o momento. Seja o primeiro a comentar! ]
+                    {t('cinemaModal.emptyComments')}
                   </div>
                 ) : (
                   safeComments.slice().reverse().map((c) => (
@@ -556,7 +558,7 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
             </div>
           ) : (
             <div style={{ color: '#555', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', padding: '1rem', border: '1px dashed #222', textAlign: 'center' }}>
-              [ COMENTÁRIOS E FEEDBACKS DESABILITADOS DEVIDO À REMOÇÃO DESTE CONTEÚDO ]
+              {t('cinemaModal.bannedComments')}
             </div>
           )}
         </div>

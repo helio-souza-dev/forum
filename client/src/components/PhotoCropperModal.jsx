@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, ZoomIn, ZoomOut, Check, Move, RotateCcw } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', onClose, onConfirm, uploading = false }) {
+  const { t } = useLanguage();
   if (!isOpen || !imageUrl) return null;
 
   const canvasRef = useRef(null);
@@ -142,7 +144,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <Move size={18} color="#a78bfa" />
             <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', fontFamily: 'JetBrains Mono, monospace' }}>
-              AJUSTAR {type === 'avatar' ? 'AVATAR (FOTO DE PERFIL)' : 'BANNER DO TOPO'}
+              {type === 'avatar' ? t('cropper.titleAvatar').toUpperCase() : t('cropper.titleBanner').toUpperCase()}
             </span>
           </div>
           <button
@@ -174,7 +176,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
           userSelect: 'none'
         }}>
           <div style={{ color: '#888', fontSize: '0.8rem', fontFamily: 'JetBrains Mono, monospace', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            🖱️ ARRASTE COM O MOUSE PARA POSICIONAR • USE A BARRA PARA DAR ZOOM
+            {t('cropper.hint')}
           </div>
 
           <div
@@ -196,7 +198,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
           >
             {!imageLoaded && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem' }}>
-                Carregando pré-visualização...
+                {t('cropper.loading')}
               </div>
             )}
             {imageRef.current && (
@@ -227,7 +229,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
               type="button"
               onClick={() => handleZoomChange(Math.max(0.1, zoom - 0.1))}
               style={{ background: '#181818', border: '1px solid #333', color: '#fff', padding: '0.45rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              title="Diminuir Zoom"
+              title={t('cropper.zoomOut')}
             >
               <ZoomOut size={16} />
             </button>
@@ -246,7 +248,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
               type="button"
               onClick={() => handleZoomChange(zoom + 0.1)}
               style={{ background: '#181818', border: '1px solid #333', color: '#fff', padding: '0.45rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              title="Aumentar Zoom"
+              title={t('cropper.zoomIn')}
             >
               <ZoomIn size={16} />
             </button>
@@ -255,9 +257,9 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
               type="button"
               onClick={() => resetPosition()}
               style={{ background: '#181818', border: '1px solid #333', color: '#a78bfa', padding: '0.45rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-              title="Centralizar e Redefinir"
+              title={t('cropper.reset')}
             >
-              <RotateCcw size={14} /> RESETAR
+              <RotateCcw size={14} /> {t('cropper.reset').toUpperCase()}
             </button>
           </div>
         </div>
@@ -287,7 +289,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
               borderRadius: '4px'
             }}
           >
-            CANCELAR
+            {t('cropper.cancel').toUpperCase()}
           </button>
 
           <button
@@ -311,9 +313,9 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
             }}
           >
             {uploading ? (
-              <>⏳ GERANDO LINK (RÁPIDO)...</>
+              <>{t('cropper.uploading').toUpperCase()}</>
             ) : (
-              <><Check size={18} /> RECORTAR & APLICAR FOTO</>
+              <><Check size={18} /> {t('cropper.apply').toUpperCase()}</>
             )}
           </button>
         </div>

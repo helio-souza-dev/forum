@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Globe, Film, Search, Zap, Hash, Loader2 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 // Injeta o keyframe da animação uma única vez (evita depender do Tailwind,
 // que é a razão do spinner girar aqui no preview mas não no seu site).
@@ -26,6 +27,7 @@ export default function BooruBar({
   onSearchSubmit,
   loading = false
 }) {
+  const { t } = useLanguage();
   const [localTagInput, setLocalTagInput] = useState(booruTags);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -181,10 +183,10 @@ export default function BooruBar({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <Globe size={20} color="#a78bfa" />
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1rem', fontWeight: 800, color: '#fff', textTransform: 'uppercase' }}>
-            MOTOR DE BUSCA E HOTLINKING BOORU (@himeka/booru)
+            {t('booruBar.title').toUpperCase()}
           </span>
           <span style={{ backgroundColor: 'rgba(167, 139, 250, 0.1)', border: '1px solid #a78bfa', color: '#a78bfa', fontSize: '0.7rem', padding: '0.2rem 0.6rem', fontFamily: 'JetBrains Mono, monospace' }}>
-            PROXY STREAMING ATIVO
+            {t('booruBar.proxyBadge').toUpperCase()}
           </span>
         </div>
 
@@ -209,7 +211,7 @@ export default function BooruBar({
               gap: '0.4rem'
             }}
           >
-            TODAS AS MÍDIAS
+            {t('booruBar.allMedia').toUpperCase()}
           </button>
           <button
             type="button"
@@ -231,7 +233,7 @@ export default function BooruBar({
               boxShadow: booruType === 'video' ? '0 0 12px rgba(167, 139, 250, 0.4)' : 'none'
             }}
           >
-            <Film size={14} /> SOMENTE VÍDEOS (.MP4/.WEBM)
+            <Film size={14} /> {t('booruBar.videoOnly').toUpperCase()}
           </button>
         </div>
       </div>
@@ -276,7 +278,7 @@ export default function BooruBar({
           <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
           <input
             type="text"
-            placeholder={`Buscar tags em "${currentSiteInfo.name || 'Booru'}" (ex: cyberpunk, neon, animated, explosion)...`}
+            placeholder={t('booruBar.searchPlaceholder', { site: currentSiteInfo.name || 'Booru' })}
             value={localTagInput}
             onChange={(e) => {
               setLocalTagInput(e.target.value);
@@ -322,7 +324,7 @@ export default function BooruBar({
                     style={{ animation: 'boorubar-spin 0.8s linear infinite' }}
                   />
                 )}
-                SUGESTÕES DE TAGS DA API ({currentSiteInfo.name || 'BOORU'}):
+                {t('booruBar.suggestionsTitle', { site: currentSiteInfo.name || 'BOORU' }).toUpperCase()}
               </div>
               {suggestions.map((item, idx) => (
                 <div
@@ -358,7 +360,7 @@ export default function BooruBar({
                     fontWeight: 700,
                     fontFamily: 'JetBrains Mono, monospace'
                   }}>
-                    {item.count > 0 ? `${Number(item.count).toLocaleString('pt-BR')} resultados` : 'Tag disponível'}
+                    {item.count > 0 ? t('booruBar.resultsCount', { count: Number(item.count).toLocaleString('pt-BR') }) : t('booruBar.tagAvailable')}
                   </span>
                 </div>
               ))}
@@ -371,13 +373,13 @@ export default function BooruBar({
           disabled={loading}
           style={{ height: '44px', padding: '0 1.75rem', boxSizing: 'border-box' }}
         >
-          {loading ? 'BUSCANDO...' : 'CONSULTAR E STREAMING'}
+          {loading ? t('booruBar.searching').toUpperCase() : t('booruBar.searchSubmit').toUpperCase()}
         </button>
       </form>
 
       <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#666', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <Zap size={12} color="#a78bfa" />
-        <span>Técnica de Hotlink Proxy habilitada: Os vídeos originais são transmitidos em tempo real pelo servidor sem erro de CORS/403. Clique em qualquer card para importar em definitivo ao seu feed!</span>
+        <span>{t('booruBar.footerHint')}</span>
       </div>
     </div>
   );
