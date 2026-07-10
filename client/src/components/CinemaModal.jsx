@@ -382,108 +382,120 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
             )}
 
             {/* Action Bar */}
-            <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #1f1f1f', paddingBottom: '1.5rem' }}>
-              {post.external ? (
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => onImportPost && onImportPost(post)}
-                  disabled={isImporting}
-                  style={{ padding: '0.75rem 1.75rem', backgroundColor: '#a78bfa', color: '#000000', borderColor: '#a78bfa', fontWeight: 800, cursor: isImporting ? 'wait' : 'pointer' }}
-                >
-                  <Download size={16} />
-                  <span>{isImporting ? 'SALVANDO EM MEU FEED LOCAL...' : '+ SALVAR PERMANENTEMENTE EM MEU FEED LOCAL'}</span>
-                </button>
-              ) : (
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => onLike && onLike(post.id)}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    backgroundColor: (currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#a78bfa' : '#1a1a1a',
-                    color: (currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#000' : '#fff',
-                    borderColor: '#a78bfa'
-                  }}
-                >
-                  <Heart size={16} fill={(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? 'currentColor' : 'none'} color={(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#000' : '#a78bfa'} />
-                  <span>{(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? 'CURTIDO' : 'CURTIR MÍDIA'} ({post.likes !== undefined ? post.likes : 0})</span>
-                </button>
-              )}
-            </div>
+            {!post.banned ? (
+              <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #1f1f1f', paddingBottom: '1.5rem' }}>
+                {post.external ? (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => onImportPost && onImportPost(post)}
+                    disabled={isImporting}
+                    style={{ padding: '0.75rem 1.75rem', backgroundColor: '#a78bfa', color: '#000000', borderColor: '#a78bfa', fontWeight: 800, cursor: isImporting ? 'wait' : 'pointer' }}
+                  >
+                    <Download size={16} />
+                    <span>{isImporting ? 'SALVANDO EM MEU FEED LOCAL...' : '+ SALVAR PERMANENTEMENTE EM MEU FEED LOCAL'}</span>
+                  </button>
+                ) : (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => onLike && onLike(post.id)}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      backgroundColor: (currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#a78bfa' : '#1a1a1a',
+                      color: (currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#000' : '#fff',
+                      borderColor: '#a78bfa'
+                    }}
+                  >
+                    <Heart size={16} fill={(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? 'currentColor' : 'none'} color={(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? '#000' : '#a78bfa'} />
+                    <span>{(currentUser && Array.isArray(post.likedBy) && post.likedBy.includes(currentUser.username)) ? 'CURTIDO' : 'CURTIR MÍDIA'} ({post.likes !== undefined ? post.likes : 0})</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ borderBottom: '1px solid #1f1f1f', paddingBottom: '1rem', color: '#ff0055', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', fontWeight: 800 }}>
+                [ INTERAÇÕES E CURTIDAS DESATIVADAS PARA ESTA MÍDIA BANIDA ]
+              </div>
+            )}
           </div>
 
           {/* Comments Section */}
-          <div className="comments-section" style={{ borderTop: 'none', paddingTop: '0' }}>
-            <h3 style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1rem', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <MessageSquare size={16} /> COMENTÁRIOS ({safeComments.length})
-            </h3>
+          {!post.banned ? (
+            <div className="comments-section" style={{ borderTop: 'none', paddingTop: '0' }}>
+              <h3 style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1rem', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <MessageSquare size={16} /> COMENTÁRIOS ({safeComments.length})
+              </h3>
 
-            {post.external ? (
-              <div style={{ color: '#888', fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace', padding: '1.25rem', backgroundColor: '#060606', border: '1px solid #1f1f1f', textAlign: 'center' }}>
-                Este item está sendo exibido em tempo real via <strong style={{ color: '#a78bfa' }}>Técnica de Hotlink Proxy (@himeka/booru)</strong>.<br />
-                Clique em <strong>+ SALVAR PERMANENTEMENTE EM MEU FEED LOCAL</strong> logo acima para adicioná-lo ao banco de dados local do PrismShare e liberar comentários!
-              </div>
-            ) : (
-              <>
-                {!currentUser ? (
-                  <div style={{ backgroundColor: '#0a0a0a', border: '1px dashed #a78bfa', padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#aaa' }}>
-                      FAÇA LOGIN PARA PARTICIPAR DOS COMENTÁRIOS OU CURTIR ESTA MÍDIA
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onRequireAuth && onRequireAuth()}
-                      style={{ background: '#a78bfa', color: '#000000', border: 'none', padding: '0.65rem 1.25rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 900, cursor: 'pointer', textTransform: 'uppercase' }}
-                    >
-                      ENTRAR OU CRIAR CONTA AGORA
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleCommentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', backgroundColor: '#060606', padding: '1rem', border: '1px solid #1f1f1f' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', color: '#00ff66' }}>
-                      <span>COMENTANDO COMO:</span>
-                      <strong style={{ background: '#0a1a1c', padding: '0.2rem 0.5rem', border: '1px solid #00ff66' }}>@{currentUser.username}</strong>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        style={{ flex: 1, minWidth: '200px', fontSize: '0.85rem', background: '#0a0a0a', border: '1px solid #222', color: '#fff', padding: '0.6rem 0.8rem' }}
-                        placeholder="Escreva seu comentário aqui..."
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        required
-                      />
-                      <button type="submit" className="btn btn-accent" disabled={sendingComment} style={{ padding: '0.6rem 1.25rem', fontWeight: 800 }}>
-                        <Send size={15} /> {sendingComment ? 'ENVIANDO...' : 'ENVIAR'}
+              {post.external ? (
+                <div style={{ color: '#888', fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace', padding: '1.25rem', backgroundColor: '#060606', border: '1px solid #1f1f1f', textAlign: 'center' }}>
+                  Este item está sendo exibido em tempo real via <strong style={{ color: '#a78bfa' }}>Técnica de Hotlink Proxy (@himeka/booru)</strong>.<br />
+                  Clique em <strong>+ SALVAR PERMANENTEMENTE EM MEU FEED LOCAL</strong> logo acima para adicioná-lo ao banco de dados local do PrismShare e liberar comentários!
+                </div>
+              ) : (
+                <>
+                  {!currentUser ? (
+                    <div style={{ backgroundColor: '#0a0a0a', border: '1px dashed #a78bfa', padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#aaa' }}>
+                        FAÇA LOGIN PARA PARTICIPAR DOS COMENTÁRIOS OU CURTIR ESTA MÍDIA
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRequireAuth && onRequireAuth()}
+                        style={{ background: '#a78bfa', color: '#000000', border: 'none', padding: '0.65rem 1.25rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 900, cursor: 'pointer', textTransform: 'uppercase' }}
+                      >
+                        ENTRAR OU CRIAR CONTA AGORA
                       </button>
                     </div>
-                  </form>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                  {safeComments.length === 0 ? (
-                    <div style={{ color: '#666', fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace', padding: '1.25rem', textAlign: 'center', border: '1px dashed #1f1f1f' }}>
-                      [ Nenhum comentário até o momento. Seja o primeiro a comentar! ]
-                    </div>
                   ) : (
-                    safeComments.slice().reverse().map((c) => (
-                      <div key={c.id} className="comment-card" style={{ backgroundColor: '#060606', border: '1px solid #1f1f1f', padding: '1rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                          <span className="comment-author" style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#a78bfa' }}>&gt; {c.author}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'JetBrains Mono, monospace' }}>
-                            {formatDate(c.createdAt)}
-                          </span>
-                        </div>
-                        <div className="comment-text" style={{ color: '#eee', fontSize: '0.95rem' }}>{c.text}</div>
+                    <form onSubmit={handleCommentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', backgroundColor: '#060606', padding: '1rem', border: '1px solid #1f1f1f' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', color: '#00ff66' }}>
+                        <span>COMENTANDO COMO:</span>
+                        <strong style={{ background: '#0a1a1c', padding: '0.2rem 0.5rem', border: '1px solid #00ff66' }}>@{currentUser.username}</strong>
                       </div>
-                    ))
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={{ flex: 1, minWidth: '200px', fontSize: '0.85rem', background: '#0a0a0a', border: '1px solid #222', color: '#fff', padding: '0.6rem 0.8rem' }}
+                          placeholder="Escreva seu comentário aqui..."
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          required
+                        />
+                        <button type="submit" className="btn btn-accent" disabled={sendingComment} style={{ padding: '0.6rem 1.25rem', fontWeight: 800 }}>
+                          <Send size={15} /> {sendingComment ? 'ENVIANDO...' : 'ENVIAR'}
+                        </button>
+                      </div>
+                    </form>
                   )}
-                </div>
-              </>
-            )}
-          </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    {safeComments.length === 0 ? (
+                      <div style={{ color: '#666', fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace', padding: '1.25rem', textAlign: 'center', border: '1px dashed #1f1f1f' }}>
+                        [ Nenhum comentário até o momento. Seja o primeiro a comentar! ]
+                      </div>
+                    ) : (
+                      safeComments.slice().reverse().map((c) => (
+                        <div key={c.id} className="comment-card" style={{ backgroundColor: '#060606', border: '1px solid #1f1f1f', padding: '1rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                            <span className="comment-author" style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#a78bfa' }}>&gt; {c.author}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'JetBrains Mono, monospace' }}>
+                              {formatDate(c.createdAt)}
+                            </span>
+                          </div>
+                          <div className="comment-text" style={{ color: '#eee', fontSize: '0.95rem' }}>{c.text}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{ color: '#555', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', padding: '1rem', border: '1px dashed #222', textAlign: 'center' }}>
+              [ COMENTÁRIOS E FEEDBACKS DESABILITADOS DEVIDO À REMOÇÃO DESTE CONTEÚDO ]
+            </div>
+          )}
         </div>
       </div>
     </div>
