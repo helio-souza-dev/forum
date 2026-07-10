@@ -108,7 +108,8 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
     try {
       setSaving(true);
       setSaveSuccess(false);
-      const token = localStorage.getItem('prismshare_auth_token');
+      const storedUser = JSON.parse(localStorage.getItem('prismshare_current_user') || '{}');
+      const token = (currentUser && currentUser.token) || storedUser.token || localStorage.getItem('prismshare_auth_token');
       const res = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: {

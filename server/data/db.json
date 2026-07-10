@@ -42,7 +42,7 @@
       ],
       "title": "Gelbooru #14462826",
       "type": "video",
-      "updatedAt": "2026-07-10T04:51:15.339Z",
+      "updatedAt": "2026-07-10T05:13:37.361Z",
       "url": "/api/hotlink?url=https%3A%2F%2Fimg4.gelbooru.com%2Fimages%2F5e%2Fd8%2F5ed895eecdf63e1ba70e9ef01cdb1863.mp4&referer=https%3A%2F%2Fgelbooru.com%2F",
       "views": 3
     },
@@ -331,8 +331,15 @@
       "createdAt": "Fri Jul 10 2026 01:51:15 GMT-0300 (Horário Padrão de Brasília)",
       "passwordHash": "$2b$10$5SpT6zCov1gopwXGw2YhJOm3cQR/f1VO1UsprBdbiF971liFZGAbC",
       "role": "dev",
-      "updatedAt": "2026-07-10T04:51:15.649Z",
-      "username": "dev"
+      "updatedAt": "2026-07-10T05:13:16.790Z",
+      "username": "dev",
+      "avatarUrl": "https://files.catbox.moe/un2v7m.webp",
+      "bio": "Olá! Sou um membro ativo do PrismShare.",
+      "bannerUrl": "https://files.catbox.moe/anifuc.webp",
+      "privacy": {
+        "showLikes": true,
+        "showPosts": true
+      }
     }
   ],
   "auditLog": []

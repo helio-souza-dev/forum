@@ -34,10 +34,49 @@ const storage = multer.diskStorage({
   }
 });
 
+const fileFilter = (req, file, cb) => {
+  const allowedMimes = [
+    'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif',
+    'video/mp4', 'video/webm', 'video/quicktime', 'application/octet-stream'
+  ];
+  const allowedExts = /\.(png|jpe?g|webp|gif|mp4|webm|mov)$/i;
+  if (allowedMimes.includes(file.mimetype) || allowedExts.test(file.originalname)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Tipo de arquivo não suportado (apenas imagens e vídeos permitidos).'));
+  }
+};
+
 const upload = multer({ 
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB max
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+  fileFilter
 });
+
+function isSafeHotlinkUrl(targetUrl) {
+  try {
+    const parsed = new URL(targetUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // Block loopback / private IP ranges (SSRF prevention)
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname === '::1' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('169.254.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /* ==========================================================================
    TÉCNICA DE HOTLINKING PROXY STREAMING (/api/hotlink)
@@ -47,8 +86,8 @@ app.get('/api/hotlink', (req, res) => {
   const targetUrl = req.query.url;
   const customReferer = req.query.referer;
 
-  if (!targetUrl || !targetUrl.startsWith('http')) {
-    return res.status(400).send('URL de hotlink inválida ou ausente');
+  if (!targetUrl || !isSafeHotlinkUrl(targetUrl)) {
+    return res.status(400).send('URL de hotlink inválida ou bloqueada por segurança (SSRF Preventions).');
   }
 
   const streamRemote = (currentUrl, redirectCount = 0) => {
@@ -152,6 +191,11 @@ app.get('/api/booru/tags', async (req, res) => {
 
 app.post('/api/booru/import', (req, res) => {
   try {
+    const token = auth.extractBearerToken(req);
+    if (!token || !auth.verifyToken(token)) {
+      return res.status(401).json({ error: 'Autenticação necessária para importar mídias.' });
+    }
+
     const postData = req.body;
     if (!postData || !postData.url) {
       return res.status(400).json({ error: 'Dados do post ausentes' });
@@ -332,8 +376,8 @@ app.post('/api/auth/register', (req, res) => {
     if (username.trim().length < 3) {
       return res.status(400).json({ error: 'O nome de usuário deve ter pelo menos 3 caracteres' });
     }
-    if (password.length < 4) {
-      return res.status(400).json({ error: 'A senha deve ter pelo menos 4 caracteres' });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres para maior segurança' });
     }
     const user = db.registerUser({ username, password });
     const token = auth.signToken(user);
