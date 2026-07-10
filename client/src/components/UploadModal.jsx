@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, Film, Image as ImageIcon, Zap, Hash, Plus, Check } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function UploadModal({ isOpen, onClose, onSuccess }) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   const [title, setTitle] = useState('');
@@ -55,11 +57,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file && !externalUrl.trim()) {
-      setError('Por favor, selecione um arquivo para upload ou forneça uma URL.');
+      setError(t('upload.errorNoFile'));
       return;
     }
     if (!title.trim()) {
-      setError('O título é obrigatório.');
+      setError(t('upload.errorTitleRequired'));
       return;
     }
 
@@ -85,7 +87,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Erro no envio do arquivo');
+        throw new Error(data.error || t('upload.errorGeneric'));
       }
 
       const newPost = await response.json();
@@ -93,7 +95,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
       onSuccess(newPost);
     } catch (err) {
       console.error('Erro no upload:', err);
-      setError(err.message || 'Falha ao enviar arquivo para o servidor.');
+      setError(err.message || t('upload.errorGeneric'));
       setUploading(false);
     }
   };
@@ -107,7 +109,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         <div className="modal-header">
           <div className="modal-title">
             <Upload size={18} color="#a78bfa" />
-            <span>ENVIAR NOVA MÍDIA PARA O FEED</span>
+            <span>{t('upload.modalTitle').toUpperCase()}</span>
           </div>
           <button className="modal-close-btn" onClick={onClose}>
             <X size={18} />
@@ -117,7 +119,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         <form className="upload-form" onSubmit={handleSubmit}>
           {error && (
             <div style={{ backgroundColor: '#1a0000', border: '1px solid #ff0055', color: '#ff0055', padding: '0.75rem 1rem', fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace' }}>
-              <strong>[ERRO]:</strong> {error}
+              <strong>{t('common.error').toUpperCase()}:</strong> {error}
             </div>
           )}
 
@@ -142,7 +144,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                 justifyContent: 'center'
               }}
             >
-              [ UPLOAD DE ARQUIVO (LOCAL) ]
+              {t('upload.fileMode').toUpperCase()}
             </button>
             <button
               type="button"
@@ -163,7 +165,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                 justifyContent: 'center'
               }}
             >
-              [ URL EXTERNA ]
+              {t('upload.urlMode').toUpperCase()}
             </button>
           </div>
 
@@ -189,28 +191,28 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                     <img src={previewUrl} alt="Preview" style={{ width: '100%', maxHeight: '240px', objectFit: 'contain' }} />
                   )}
                   <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace' }}>
-                    [ OK ] ARQUIVO SELECIONADO: {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                    {t('upload.fileSelected', { name: file.name, size: (file.size / (1024 * 1024)).toFixed(2) })}
                   </div>
                 </div>
               ) : (
                 <>
                   <Upload size={36} color="#a78bfa" style={{ margin: '0 auto 0.75rem' }} />
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>
-                    ARRASTE E SOLTE SEU ARQUIVO AQUI
+                    {t('upload.dropText').toUpperCase()}
                   </div>
                   <div style={{ color: '#888', fontSize: '0.8rem' }}>
-                    Ou clique para navegar pelo computador. Suporta Vídeos (.mp4, .webm), Imagens (.jpg, .png, .webp) e GIFs (.gif). Máximo: 100MB.
+                    {t('upload.dropHint')}
                   </div>
                 </>
               )}
             </div>
           ) : (
             <div className="form-group">
-              <label className="form-label">URL DA MÍDIA (VÍDEO, IMAGEM OU GIF)</label>
+              <label className="form-label">{t('upload.mediaUrlLabel').toUpperCase()}</label>
               <input
                 type="url"
                 className="form-input"
-                placeholder="https://exemplo.com/media.png ou .mp4"
+                placeholder={t('upload.urlPlaceholder')}
                 value={externalUrl}
                 onChange={(e) => {
                   setExternalUrl(e.target.value);
@@ -227,11 +229,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
 
           {/* Title & Description */}
           <div className="form-group">
-            <label className="form-label">TÍTULO DA PUBLICACÃO *</label>
+            <label className="form-label">{t('upload.titleLabel').toUpperCase()} *</label>
             <input
               type="text"
               className="form-input"
-              placeholder="Ex: Noite de Chuva Neon em Cyber City"
+              placeholder={t('upload.titlePlaceholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -239,11 +241,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">DESCRIÇÃO (OPCIONAL)</label>
+            <label className="form-label">{t('upload.descriptionLabel').toUpperCase()}</label>
             <textarea
               className="form-textarea"
               rows="2"
-              placeholder="Descreva sobre a criação, câmera, software usado ou contexto..."
+              placeholder={t('upload.descriptionPlaceholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -251,13 +253,13 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
 
           {/* Interactive Tag Input */}
           <div className="form-group">
-            <label className="form-label">ADICIONAR TAGS (DIGITE E PRESSIONE ENTER OU VÍRGULA)</label>
+            <label className="form-label">{t('upload.tagsLabel').toUpperCase()}</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
                 className="form-input"
                 style={{ flex: 1 }}
-                placeholder="Ex: cyberpunk, 4k, blender, memes..."
+                placeholder={t('upload.tagsPlaceholder')}
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagAdd}
@@ -273,14 +275,14 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                   setTagInput('');
                 }}
               >
-                <Plus size={16} /> ADD
+                <Plus size={16} /> {t('upload.addTag').toUpperCase()}
               </button>
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
-              {tags.map((t) => (
+              {tags.map((tagName) => (
                 <span
-                  key={t}
+                  key={tagName}
                   style={{
                     backgroundColor: '#1a1a1a',
                     border: '1px solid #a78bfa',
@@ -293,10 +295,10 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                     gap: '0.4rem'
                   }}
                 >
-                  <Hash size={12} /> {t}
+                  <Hash size={12} /> {tagName}
                   <button
                     type="button"
-                    onClick={() => removeTag(t)}
+                    onClick={() => removeTag(tagName)}
                     style={{ background: 'none', border: 'none', color: '#ff0055', cursor: 'pointer', display: 'flex' }}
                   >
                     <X size={13} />
@@ -308,10 +310,10 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn" onClick={onClose} disabled={uploading}>
-              CANCELAR
+              {t('upload.cancel').toUpperCase()}
             </button>
             <button type="submit" className="btn btn-primary" disabled={uploading}>
-              {uploading ? 'ENVIANDO PARA SERVIDOR...' : 'PUBLICAR NA FRONT PAGE'}
+              {uploading ? t('upload.submitting').toUpperCase() : t('upload.submit').toUpperCase()}
             </button>
           </div>
         </form>

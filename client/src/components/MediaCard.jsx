@@ -1,7 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { Heart, Eye, Film, Image as ImageIcon, Zap, Hash, Download, Globe, AlertTriangle, MessageSquare } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
-export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImportPost, importingIds = [], currentUser = null }) {
+export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImportPost, importingIds = [], currentUser = null, onOpenProfile }) {
+  const { t } = useLanguage();
   const videoRef = useRef(null);
   const [externalLiked, setExternalLiked] = useState(false);
   const [externalLikeDelta, setExternalLikeDelta] = useState(0);
@@ -86,12 +88,12 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
 
   const renderBadge = () => {
     if (post.type === 'video') {
-      return <span className="type-badge"><Film size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> VÍDEO</span>;
+      return <span className="type-badge"><Film size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> {t('mediaCard.badgeVideo').toUpperCase()}</span>;
     }
     if (post.type === 'gif') {
-      return <span className="type-badge"><Zap size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle', color: '#00ff66' }} /> GIF</span>;
+      return <span className="type-badge"><Zap size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle', color: '#00ff66' }} /> {t('mediaCard.badgeGif').toUpperCase()}</span>;
     }
-    return <span className="type-badge"><ImageIcon size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> IMAGEM</span>;
+    return <span className="type-badge"><ImageIcon size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> {t('mediaCard.badgeImage').toUpperCase()}</span>;
   };
 
   const safeTags = Array.isArray(post.tags) ? post.tags : [];
@@ -127,7 +129,7 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
             }}
           >
             <AlertTriangle size={24} />
-            <span>MÍDIA BANIDA</span>
+            <span>{t('mediaCard.banned').toUpperCase()}</span>
           </div>
         )}
 
@@ -190,7 +192,7 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
 
       <div className="card-content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
-          <h3 className="card-title" style={{ margin: 0, flex: 1 }}>{post.title || 'Mídia sem título'}</h3>
+          <h3 className="card-title" style={{ margin: 0, flex: 1 }}>{post.title || t('mediaCard.untitled')}</h3>
           {(post.author || post.uploader || (post.external && post.siteName)) && (
             <span 
               className="author-badge"
@@ -200,7 +202,7 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
               }}
               style={{ cursor: 'pointer', fontSize: '0.7rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, backgroundColor: 'rgba(167, 139, 250, 0.12)', padding: '0.15rem 0.45rem', border: '1px solid rgba(167, 139, 250, 0.35)', whiteSpace: 'nowrap', borderRadius: '3px' }}
             >
-              por @{post.author || post.uploader || post.siteName.split(' ')[0]}
+              {t('mediaCard.by')} @{post.author || post.uploader || post.siteName.split(' ')[0]}
             </span>
           )}
         </div>
@@ -227,12 +229,12 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
 
       <div className="card-footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="stat-item" title={`${viewsCount} visualizações registradas no banco de dados`}>
+          <div className="stat-item" title={t('mediaCard.viewsTitle', { count: viewsCount })}>
             <Eye size={14} color="#a78bfa" />
             <span>{viewsCount}</span>
           </div>
 
-          <div className="stat-item" title={`${commentsCount} comentários`}>
+          <div className="stat-item" title={t('mediaCard.commentsTitle', { count: commentsCount })}>
             <MessageSquare size={14} color="#a78bfa" />
             <span>{commentsCount}</span>
           </div>
@@ -257,7 +259,7 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
               }}
             >
               <Download size={11} />
-              {isImporting ? 'SALVANDO...' : '+ SALVAR NO MEU FEED'}
+              {isImporting ? t('mediaCard.importing').toUpperCase() : t('mediaCard.importSave').toUpperCase()}
             </button>
           )}
         </div>
