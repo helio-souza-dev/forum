@@ -8,6 +8,7 @@ const http = require('http');
 const URL = require('url').URL;
 const db = require('./db');
 const booru = require('./booru');
+const auth = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -275,7 +276,8 @@ app.post('/api/auth/register', (req, res) => {
       return res.status(400).json({ error: 'A senha deve ter pelo menos 4 caracteres' });
     }
     const user = db.registerUser({ username, password });
-    res.status(201).json(user);
+    const token = auth.signToken(user);
+    res.status(201).json({ ...user, token });
   } catch (err) {
     console.error('Erro em POST /api/auth/register:', err.message);
     res.status(400).json({ error: err.message || 'Erro ao registrar usuário' });
@@ -289,7 +291,8 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
     }
     const user = db.loginUser({ username, password });
-    res.json(user);
+    const token = auth.signToken(user);
+    res.json({ ...user, token });
   } catch (err) {
     console.error('Erro em POST /api/auth/login:', err.message);
     res.status(401).json({ error: err.message || 'Credenciais inválidas' });
@@ -330,17 +333,33 @@ app.post('/api/media/:id/comment', (req, res) => {
    ADMINISTRATIVE & DEVELOPER ENDPOINTS
    ========================================================================== */
 
+// Verifica o token JWT (Authorization: Bearer <token>) e carrega o usuário
+// e o papel (role) atuais DIRETO DO BANCO — nunca confiando em nada que o
+// cliente tenha enviado. Isso também garante que uma mudança de role feita
+// por um dev tenha efeito imediato, sem esperar o token expirar.
 const checkRole = (allowedRoles) => {
   return (req, res, next) => {
-    const username = req.headers['x-username'] || req.query.username || (req.body && req.body.username);
-    if (!username) {
+    const token = auth.extractBearerToken(req);
+    if (!token) {
       return res.status(401).json({ error: 'Autenticação necessária' });
     }
-    const role = db.getUserRole(username);
-    if (!role || !allowedRoles.includes(role)) {
+
+    const payload = auth.verifyToken(token);
+    if (!payload || !payload.sub) {
+      return res.status(401).json({ error: 'Token inválido ou expirado' });
+    }
+
+    const user = db.getUserById(payload.sub);
+    if (!user) {
+      return res.status(401).json({ error: 'Usuário não encontrado' });
+    }
+
+    const role = user.role || 'user';
+    if (!allowedRoles.includes(role)) {
       return res.status(403).json({ error: 'Acesso negado: permissões insuficientes' });
     }
-    req.authUsername = username;
+
+    req.authUsername = user.username;
     req.authRole = role;
     next();
   };

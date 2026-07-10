@@ -86,6 +86,13 @@ export default function App() {
     return true;
   };
 
+  // Monta os headers de autenticação usando o token JWT emitido no login/registro,
+  // em vez de simplesmente informar o username (que qualquer um poderia forjar).
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(currentUser && currentUser.token ? { 'Authorization': `Bearer ${currentUser.token}` } : {})
+  });
+
   const fetchTags = useCallback(async () => {
     try {
       const res = await fetch('/api/tags');
@@ -188,10 +195,7 @@ export default function App() {
     if (!currentUser) return;
     setAdminLoading(true);
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'x-username': currentUser.username
-      };
+      const headers = authHeaders();
       const [resUsers, resAudit] = await Promise.all([
         fetch('/api/admin/users', { headers }),
         fetch('/api/admin/audit', { headers })
@@ -216,10 +220,7 @@ export default function App() {
     setDevLoading(true);
     try {
       const res = await fetch('/api/dev/stats', {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-username': currentUser.username
-        }
+        headers: authHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -237,10 +238,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/admin/ban/${postId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-username': currentUser.username
-        },
+        headers: authHeaders(),
         body: JSON.stringify({ reason })
       });
       if (res.ok) {
@@ -261,10 +259,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/admin/unban/${postId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-username': currentUser.username
-        }
+        headers: authHeaders()
       });
       if (res.ok) {
         const updatedPost = await res.json();
@@ -284,10 +279,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-username': currentUser.username
-        },
+        headers: authHeaders(),
         body: JSON.stringify({ role: newRole })
       });
       if (res.ok) {

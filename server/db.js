@@ -1,6 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+// Hash sha256 "puro" (sem salt) usado nas versões antigas do PrismShare.
+// Mantido só para reconhecer e migrar automaticamente senhas antigas para bcrypt.
+function legacySha256(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
@@ -163,7 +170,12 @@ class Database {
   _ensureDevUser() {
     const devExists = this.data.users.find(u => u.username.toLowerCase() === 'dev');
     if (!devExists) {
-      const passwordHash = crypto.createHash('sha256').update('dev1234').digest('hex');
+      // A senha do usuário dev padrão NUNCA é fixa no código.
+      // Use a variável de ambiente PRISMSHARE_DEV_PASSWORD para definir uma senha
+      // conhecida (ex.: em desenvolvimento local); caso contrário, uma senha
+      // aleatória é gerada e impressa no console UMA única vez.
+      const devPassword = process.env.PRISMSHARE_DEV_PASSWORD || crypto.randomBytes(9).toString('base64url');
+      const passwordHash = bcrypt.hashSync(devPassword, 10);
       this.data.users.push({
         id: crypto.randomUUID(),
         username: 'dev',
@@ -172,6 +184,13 @@ class Database {
         createdAt: new Date().toISOString()
       });
       this.save();
+      if (!process.env.PRISMSHARE_DEV_PASSWORD) {
+        console.log('==================================================================');
+        console.log(`[Auth] Usuário "dev" criado. Senha gerada automaticamente: ${devPassword}`);
+        console.log('[Auth] Guarde essa senha agora — ela não será mostrada novamente.');
+        console.log('[Auth] Para definir uma senha fixa, use a variável PRISMSHARE_DEV_PASSWORD.');
+        console.log('==================================================================');
+      }
     } else if (!devExists.role || devExists.role !== 'dev') {
       devExists.role = 'dev';
       this.save();
@@ -199,7 +218,7 @@ class Database {
       throw new Error('Este nome de usuário já está em uso.');
     }
 
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+    const passwordHash = bcrypt.hashSync(password, 10);
     const role = 'user';
     const newUser = {
       id: crypto.randomUUID(),
@@ -218,12 +237,32 @@ class Database {
       throw new Error('Usuário e senha são obrigatórios');
     }
     const cleanUsername = username.trim().toLowerCase();
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
-    const user = this.data.users.find(u => u.username.toLowerCase() === cleanUsername && u.passwordHash === passwordHash);
+    const user = this.data.users.find(u => u.username.toLowerCase() === cleanUsername);
     if (!user) {
       throw new Error('Usuário ou senha incorretos.');
     }
-    if (!user.role) { user.role = 'user'; this.save(); }
+
+    const isBcryptHash = typeof user.passwordHash === 'string' && /^\$2[aby]\$/.test(user.passwordHash);
+    let passwordMatches = false;
+
+    if (isBcryptHash) {
+      passwordMatches = bcrypt.compareSync(password, user.passwordHash);
+    } else {
+      // Conta antiga, criada antes da migração para bcrypt: valida contra o
+      // hash sha256 legado e, se bater, re-hasheia a senha com bcrypt na hora,
+      // de forma transparente para o usuário.
+      passwordMatches = user.passwordHash === legacySha256(password);
+      if (passwordMatches) {
+        user.passwordHash = bcrypt.hashSync(password, 10);
+      }
+    }
+
+    if (!passwordMatches) {
+      throw new Error('Usuário ou senha incorretos.');
+    }
+
+    if (!user.role) user.role = 'user';
+    this.save();
     return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
   }
 
@@ -233,6 +272,13 @@ class Database {
     const user = this.data.users.find(u => u.username.toLowerCase() === clean);
     if (!user) return null;
     return { id: user.id, username: user.username, createdAt: user.createdAt };
+  }
+
+  getUserById(id) {
+    if (!id) return null;
+    const user = this.data.users.find(u => u.id === id);
+    if (!user) return null;
+    return { id: user.id, username: user.username, role: user.role || 'user', createdAt: user.createdAt };
   }
 
   /* ==========================================================================
