@@ -49,63 +49,26 @@ function fetchDirectHtml(url) {
   });
 }
 
-async function scrapeGelbooruHtml(tagsArray, pageNum, limitNum) {
-  const pid = (pageNum - 1) * 42;
+async function fetchGelbooruJson(tagsArray, pageNum, limitNum) {
+  const pid = (pageNum - 1);
   const tagQuery = encodeURIComponent(tagsArray.join(' '));
-  const url = `https://gelbooru.com/index.php?page=post&s=list&tags=${tagQuery}&pid=${pid}`;
+  const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`;
 
-  const html = await fetchDirectHtml(url);
-  const articles = [...html.matchAll(/<article[^>]*class="thumbnail-preview"[^>]*>([\s\S]*?)<\/article>/gi)];
+  const resJson = await fetchDirectJson(url);
+  const posts = Array.isArray(resJson) ? resJson : (resJson.post || []);
   
-  const results = [];
-  for (const articleMatch of articles) {
-    if (results.length >= limitNum) break;
-    const articleHtml = articleMatch[1];
-    const idMatch = articleHtml.match(/id="p(\d+)"/i) || articleHtml.match(/id=\d+/i);
-    const imgMatch = articleHtml.match(/<img[^>]+src="([^"]+)"[^>]+title="([^"]*)"/i);
-    
-    if (idMatch && imgMatch) {
-      const postId = idMatch[1];
-      const thumbUrl = imgMatch[1];
-      const tagsStr = imgMatch[2];
-      const postTags = tagsStr.split(/[ ,]+/).map(t => t.trim()).filter(Boolean);
-
-      // Extract full media URL from thumbnail url pattern:
-      // e.g. https://img4.gelbooru.com/thumbnails/f9/c6/thumbnail_f9c65ab2532582a21c65c4f9814f256b.jpg
-      // -> https://img4.gelbooru.com/images/f9/c6/f9c65ab2532582a21c65c4f9814f256b.[ext]
-      const thumbClean = thumbUrl.replace('/thumbnails/', '/images/').replace('/thumbnail_', '/');
-      let fullMediaUrl = thumbClean;
-      let postType = 'image';
-
-      if (postTags.includes('video') || postTags.includes('mp4') || postTags.includes('webm')) {
-        fullMediaUrl = thumbClean.replace(/\.(jpg|png|jpeg|webp)$/i, '.mp4');
-        postType = 'video';
-      } else if (postTags.includes('gif') || postTags.includes('animated_gif')) {
-        fullMediaUrl = thumbClean.replace(/\.(jpg|png|jpeg|webp)$/i, '.gif');
-        postType = 'gif';
-      } else if (postTags.includes('png')) {
-        fullMediaUrl = thumbClean.replace(/\.(jpg|png|jpeg|webp)$/i, '.png');
-        postType = 'image';
-      } else if (postTags.includes('webp')) {
-        fullMediaUrl = thumbClean.replace(/\.(jpg|png|jpeg|webp)$/i, '.webp');
-        postType = 'image';
-      } else {
-        postType = 'image';
-      }
-
-      results.push({
-        id: postId,
-        fileUrl: fullMediaUrl,
-        previewUrl: thumbUrl,
-        tags: postTags,
-        score: 0,
-        rating: 'q',
-        type: postType
-      });
-    }
-  }
-
-  return results;
+  return posts.map(post => ({
+    id: post.id || Math.random().toString(36).substring(2, 9),
+    fileUrl: post.file_url || '',
+    previewUrl: post.preview_url || post.sample_url || post.file_url || '',
+    tags: (post.tags || '').split(/[ ,]+/).map(t => t.trim()).filter(Boolean),
+    score: post.score || 0,
+    rating: post.rating || 'q',
+    source: post.source || '',
+    owner: post.owner || post.creator_id || 'Gelbooru User',
+    type: (post.file_url && (post.file_url.endsWith('.mp4') || post.file_url.endsWith('.webm'))) ? 'video' :
+          (post.file_url && post.file_url.endsWith('.gif')) ? 'gif' : 'image'
+  }));
 }
 
 async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', page = 1 }) {
@@ -144,7 +107,7 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
   } catch (booruErr) {
     try {
       if (site === 'gb') {
-        rawPosts = await scrapeGelbooruHtml(tagsArray, pageNum, limitNum);
+        rawPosts = await fetchGelbooruJson(tagsArray, pageNum, limitNum);
       } else {
         const tagQuery = encodeURIComponent(tagsArray.join(' '));
         let apiUrl = '';

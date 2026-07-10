@@ -110,9 +110,6 @@ export default function App() {
     setCurrentUser(userData);
     try {
       localStorage.setItem('prismshare_current_user', JSON.stringify(userData));
-      if (userData && userData.token) {
-        localStorage.setItem('prismshare_auth_token', userData.token);
-      }
     } catch (err) {
       console.error('Erro ao salvar usuário no localStorage:', err);
     }
@@ -123,7 +120,6 @@ export default function App() {
     setMode('local');
     try {
       localStorage.removeItem('prismshare_current_user');
-      localStorage.removeItem('prismshare_auth_token');
     } catch (err) {
       console.error('Erro ao remover usuário do localStorage:', err);
     }

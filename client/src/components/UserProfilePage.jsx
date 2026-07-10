@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Heart, Image as ImageIcon, Shield, Settings, Check, Lock, Calendar, Edit3, Eye, EyeOff, Terminal } from 'lucide-react';
 import MediaCard from './MediaCard';
 import PhotoCropperModal from './PhotoCropperModal';
+import { getAuthToken } from '../utils/auth';
 
 export default function UserProfilePage({ username, currentUser, onBack, onSelectPost, onOpenUpload, onRequireAuth, onLike, onOpenProfile }) {
   const [profile, setProfile] = useState(null);
@@ -108,8 +109,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
     try {
       setSaving(true);
       setSaveSuccess(false);
-      const storedUser = JSON.parse(localStorage.getItem('prismshare_current_user') || '{}');
-      const token = (currentUser && currentUser.token) || storedUser.token || localStorage.getItem('prismshare_auth_token');
+      const token = getAuthToken(currentUser);
       const res = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: {

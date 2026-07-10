@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -13,8 +14,43 @@ const auth = require('./auth');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// CORS Allowlist Configuration
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permite chamadas sem origin (ex: mobile apps, chamadas locais do servidor ou curl) ou da allowlist
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    return callback(new Error('Acesso não permitido por política de CORS'));
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Rate Limiters para blindagem contra força bruta e abusos
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 25, // máx 25 tentativas de login/registro por IP a cada 15 min
+  message: { error: 'Muitas tentativas de autenticação a partir deste IP. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const proxyLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 120, // máx 120 requisições por IP a cada minuto no proxy
+  message: 'Limite de requisições ao proxy atingido. Aguarde um minuto.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -82,7 +118,7 @@ function isSafeHotlinkUrl(targetUrl) {
    TÉCNICA DE HOTLINKING PROXY STREAMING (/api/hotlink)
    Bypasses Referer & CORS Blocks to stream videos/images cleanly
    ========================================================================== */
-app.get('/api/hotlink', (req, res) => {
+app.get('/api/hotlink', proxyLimiter, (req, res) => {
   const targetUrl = req.query.url;
   const customReferer = req.query.referer;
 
@@ -367,7 +403,7 @@ app.post('/api/media', upload.single('file'), (req, res) => {
 /* ==========================================================================
    AUTHENTICATION ENDPOINTS (MODULAR REPOSITORY STRUCTURE)
    ========================================================================== */
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', authLimiter, (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -388,7 +424,7 @@ app.post('/api/auth/register', (req, res) => {
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authLimiter, (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {

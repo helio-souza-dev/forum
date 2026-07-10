@@ -1,7 +1,13 @@
-# Segredos gerados localmente — nunca commitar
+# Segredos e banco de dados local gerados em tempo de execução — nunca commitar
 server/data/jwt_secret.txt
+server/data/db.json
+server/data/db.json.tmp*
+server/uploads/*
+!server/uploads/.gitkeep
 .env
 **/.env
 
-# Dependências (reinstaláveis via npm install)
+# Dependências e logs
 node_modules/
+*.log
+.system_generated/
