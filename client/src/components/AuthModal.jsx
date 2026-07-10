@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { X, Lock, User, Key, ArrowRight, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login' }) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   const [tab, setTab] = useState(initialTab); // 'login' | 'register'
@@ -13,7 +15,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password) {
-      setError('Preencha o nome de usuário e a senha.');
+      setError(t('auth.errorRequired'));
       return;
     }
 
@@ -32,7 +34,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Erro na autenticação');
+        throw new Error(data.error || t('auth.errorGeneric'));
       }
 
       onAuthSuccess(data);
@@ -85,7 +87,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 800, color: '#fff' }}>
             <Lock size={18} color="#a78bfa" />
-            <span>SISTEMA DE AUTENTICAÇÃO</span>
+            <span>{t('auth.title').toUpperCase()}</span>
           </div>
           <button 
             onClick={onClose}
@@ -118,7 +120,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
           gap: '0.6rem'
         }}>
           <ShieldCheck size={18} color="#a78bfa" style={{ flexShrink: 0 }} />
-          <span>Para curtir mídias ou participar dos comentários, você precisa estar conectado à sua identidade no PrismShare.</span>
+          <span>{t('auth.notice')}</span>
         </div>
 
         {/* Tab Switcher */}
@@ -139,7 +141,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
               transition: 'all 0.15s ease'
             }}
           >
-            ENTRAR (LOGIN)
+            {t('auth.tabLogin').toUpperCase()}
           </button>
           <button
             type="button"
@@ -157,7 +159,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
               transition: 'all 0.15s ease'
             }}
           >
-            CRIAR CONTA
+            {t('auth.tabRegister').toUpperCase()}
           </button>
         </div>
 
@@ -182,13 +184,13 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 800, color: '#aaa', textTransform: 'uppercase' }}>
-              Nome de Usuário (@ID)
+              {t('auth.usernameLabel')}
             </label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <User size={16} color="#a78bfa" style={{ position: 'absolute', left: '12px' }} />
               <input
                 type="text"
-                placeholder="ex: CyberMaster, Nishizumi"
+                placeholder={t('auth.usernamePlaceholder')}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 style={{
@@ -207,7 +209,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 800, color: '#aaa', textTransform: 'uppercase' }}>
-              Senha de Acesso
+              {t('auth.passwordLabel')}
             </label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Key size={16} color="#a78bfa" style={{ position: 'absolute', left: '12px' }} />
@@ -251,7 +253,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialTab = 'login'
               boxShadow: '0 0 15px rgba(167, 139, 250, 0.4)'
             }}
           >
-            <span>{loading ? 'PROCESSANDO...' : (tab === 'login' ? 'ACESSAR MINHA CONTA' : 'CADASTRAR E CONECTAR')}</span>
+            <span>{loading ? t('auth.submitting').toUpperCase() : (tab === 'login' ? t('auth.submitLogin').toUpperCase() : t('auth.submitRegister').toUpperCase())}</span>
             <ArrowRight size={18} />
           </button>
         </form>

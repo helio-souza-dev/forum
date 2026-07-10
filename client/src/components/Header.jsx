@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Terminal, Hash, X, Globe, Database } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
+import LanguageSelector from './LanguageSelector';
 
 export default function Header({ 
   searchQuery, 
@@ -15,6 +17,7 @@ export default function Header({
   onLogout,
   onOpenProfile
 }) {
+  const { t } = useLanguage();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
@@ -67,7 +70,7 @@ export default function Header({
             }}
           >
             <Database size={14} color={mode === 'local' ? '#000' : '#888'} />
-            FEED LOCAL
+            {t('header.tabLocal')}
           </button>
           <button
             type="button"
@@ -89,7 +92,7 @@ export default function Header({
             }}
           >
             <Globe size={14} color={mode === 'booru' ? '#000' : '#a78bfa'} />
-            BOORU & VÍDEOS EXTERNOS (HOTLINK)
+            {t('header.tabBooru')}
           </button>
         </div>
       </div>
@@ -100,7 +103,7 @@ export default function Header({
           <input
             type="text"
             className="search-input"
-            placeholder="Buscar título, descrição ou #tag no feed local..."
+            placeholder={t('header.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => {
               if (onSearchChange) onSearchChange(e.target.value);
@@ -142,14 +145,14 @@ export default function Header({
               }}
             >
               <div style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#888', borderBottom: '1px solid #222' }}>
-                SUGESTÕES DE TAGS:
+                {t('header.tagSuggestions')}
               </div>
-              {suggestions.map((t, idx) => {
-                const isSelected = safeSelectedTags.includes(t.name);
+              {suggestions.map((tagObj, idx) => {
+                const isSelected = safeSelectedTags.includes(tagObj.name);
                 return (
                   <div
-                    key={`${t.name}-${idx}`}
-                    onMouseDown={() => handleSuggestionClick(t)}
+                    key={`${tagObj.name}-${idx}`}
+                    onMouseDown={() => handleSuggestionClick(tagObj)}
                     style={{
                       padding: '0.6rem 1rem',
                       cursor: 'pointer',
@@ -165,9 +168,9 @@ export default function Header({
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? '#1a1a1a' : 'transparent'}
                   >
                     <span style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Hash size={14} /> {t.name}
+                      <Hash size={14} /> {tagObj.name}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>{t.count} mídias</span>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>{t('header.mediaCount', { count: tagObj.count })}</span>
                   </div>
                 );
               })}
@@ -176,11 +179,13 @@ export default function Header({
         </div>
       ) : (
         <div style={{ flex: 1, textAlign: 'center', color: '#888', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem' }}>
-          EXPLORANDO MOTORES EXTERNOS & HOTLINK PROXY VIA @himeka/booru
+          {t('header.exploringExternal')}
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <LanguageSelector />
+
         {currentUser && (currentUser.role === 'admin' || currentUser.role === 'dev') && (
           <button
             type="button"
@@ -202,7 +207,7 @@ export default function Header({
               boxSizing: 'border-box'
             }}
           >
-            PAINEL {currentUser.role.toUpperCase()}
+            {t('header.panelButton', { role: currentUser.role.toUpperCase() })}
           </button>
         )}
 
@@ -213,7 +218,7 @@ export default function Header({
               type="button"
               onClick={() => onOpenProfile && onOpenProfile(currentUser.username)}
               style={{ background: 'transparent', border: 'none', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 800, color: '#00ff66', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-              title="Abrir Meu Perfil"
+              title={t('header.openProfile')}
             >
               @{currentUser.username}
             </button>
@@ -221,9 +226,9 @@ export default function Header({
               type="button"
               onClick={onLogout}
               style={{ background: '#1a0505', border: '1px solid #ff0055', color: '#ff5588', padding: '0 0.6rem', height: '26px', boxSizing: 'border-box', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer', marginLeft: '6px' }}
-              title="Sair da conta"
+              title={t('header.logout')}
             >
-              SAIR
+              {t('header.logout').toUpperCase()}
             </button>
           </div>
         ) : (
@@ -238,13 +243,13 @@ export default function Header({
               fontWeight: 800
             }}
           >
-            <span>ENTRAR / CADASTRAR</span>
+            <span>{t('header.login')}</span>
           </button>
         )}
 
         <button type="button" className="btn btn-primary" onClick={onOpenUpload}>
           <Plus size={18} />
-          <span>Enviar Mídia</span>
+          <span>{t('header.uploadMedia')}</span>
         </button>
       </div>
     </header>

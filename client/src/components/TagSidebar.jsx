@@ -1,13 +1,15 @@
 import React from 'react';
 import { Hash, Filter, RotateCcw } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function TagSidebar({ tags = [], selectedTags = [], onToggleTag, onClearTags }) {
+  const { t } = useLanguage();
   return (
     <aside className="tag-sidebar">
       <div className="sidebar-title">
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Filter size={14} color="#a78bfa" />
-          <span>TAGS EM ALTA</span>
+          <span>{t('tagSidebar.title')}</span>
         </span>
         {selectedTags.length > 0 && (
           <button
@@ -28,7 +30,7 @@ export default function TagSidebar({ tags = [], selectedTags = [], onToggleTag, 
             onMouseEnter={(e) => { e.currentTarget.style.background = '#ff0055'; e.currentTarget.style.color = '#fff'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#ff0055'; }}
           >
-            <RotateCcw size={10} /> LIMPAR
+            <RotateCcw size={10} /> {t('tagSidebar.clear')}
           </button>
         )}
       </div>
@@ -36,7 +38,7 @@ export default function TagSidebar({ tags = [], selectedTags = [], onToggleTag, 
       <div className="tag-list">
         {tags.length === 0 ? (
           <div style={{ color: '#555', fontSize: '0.8rem', fontFamily: 'JetBrains Mono, monospace', padding: '1rem 0' }}>
-            [ Nenhuma tag encontrada ]
+            {t('tagSidebar.empty')}
           </div>
         ) : (
           tags.map((t) => {
