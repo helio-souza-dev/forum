@@ -255,7 +255,7 @@
     {
       "id": "f7d6484e-000a-4970-a2f9-9b2e0ea8e96b",
       "username": "dev",
-      "passwordHash": "a78f8128f2109434daf14d867c665d97a242909409b29bc0a965111d8a4a9f80",
+      "passwordHash": "$2b$10$5SpT6zCov1gopwXGw2YhJOm3cQR/f1VO1UsprBdbiF971liFZGAbC",
       "role": "dev",
       "createdAt": "2026-07-10T03:33:25.946Z"
     }
