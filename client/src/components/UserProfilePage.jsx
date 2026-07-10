@@ -5,7 +5,7 @@ import PhotoCropperModal from './PhotoCropperModal';
 import { getAuthToken } from '../utils/auth';
 import { useLanguage } from '../i18n/LanguageContext';
 
-export default function UserProfilePage({ username, currentUser, onBack, onSelectPost, onOpenUpload, onRequireAuth, onLike, onOpenProfile }) {
+export default function UserProfilePage({ username, currentUser, onBack, onSelectPost, onOpenUpload, onRequireAuth, onLike, onOpenProfile, onLogout, onUpdateUser }) {
   const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +98,12 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
       setBio(data.bio || 'Olá! Sou um membro ativo do PrismShare.');
       setShowLikes(data.privacy ? data.privacy.showLikes !== false : true);
       setShowPosts(data.privacy ? data.privacy.showPosts !== false : true);
+
+      if (currentUser && currentUser.username && currentUser.username.toLowerCase() === username.toLowerCase() && onUpdateUser) {
+        if (currentUser.avatarUrl !== (data.avatarUrl || '') || currentUser.bio !== (data.bio || '')) {
+          onUpdateUser({ avatarUrl: data.avatarUrl || '', bio: data.bio || '', bannerUrl: data.bannerUrl || '' });
+        }
+      }
     } catch (err) {
       setError(err.message || 'Erro ao carregar dados do usuário.');
     } finally {
@@ -136,6 +142,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
 
       const updated = await res.json();
       setProfile(prev => ({ ...prev, ...updated }));
+      if (onUpdateUser) onUpdateUser(updated);
       setIsEditing(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -612,6 +619,25 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
                       }}
                     >
                       {t('userProfile.cancel').toUpperCase()}
+                    </button>
+                  </div>
+
+                  {/* Logout Section */}
+                  <div style={{ borderTop: '1px solid #222', marginTop: '2rem', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <div style={{ color: '#ff3366', fontWeight: 800, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem' }}>
+                        DESCONECTAR DA CONTA
+                      </div>
+                      <div style={{ color: '#777', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                        Encerra a sessão ativa neste dispositivo.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onLogout}
+                      style={{ background: '#1a0508', color: '#ff3366', border: '1px solid #ff3366', padding: '0.7rem 1.5rem', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, cursor: 'pointer', borderRadius: '4px', transition: 'all 0.2s' }}
+                    >
+                      SAIR / DESCONECTAR
                     </button>
                   </div>
                 </form>

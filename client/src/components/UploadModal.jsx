@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, Film, Image as ImageIcon, Zap, Hash, Plus, Check } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getAuthToken } from '../utils/auth';
 
-export default function UploadModal({ isOpen, onClose, onSuccess }) {
+export default function UploadModal({ isOpen, onClose, onSuccess, currentUser }) {
   const { t } = useLanguage();
   if (!isOpen) return null;
 
@@ -79,9 +80,15 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
       } else {
         formData.append('url', externalUrl.trim());
       }
+      if (currentUser && currentUser.username) {
+        formData.append('uploader', currentUser.username);
+        formData.append('author', currentUser.username);
+      }
 
+      const token = getAuthToken(currentUser);
       const response = await fetch('/api/media', {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData
       });
 

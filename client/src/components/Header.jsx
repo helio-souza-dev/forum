@@ -212,23 +212,40 @@ export default function Header({
         )}
 
         {currentUser ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#0a1a1c', border: '1px solid #a78bfa', padding: '0 0.85rem', height: '40px', boxSizing: 'border-box' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00ff66', boxShadow: '0 0 8px #00ff66', display: 'inline-block' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: '#08080a', border: '1px solid #282830', borderRadius: '24px', padding: '0.2rem 0.6rem 0.2rem 0.3rem', height: '38px', boxSizing: 'border-box', transition: 'border-color 0.2s' }}>
             <button
               type="button"
               onClick={() => onOpenProfile && onOpenProfile(currentUser.username)}
-              style={{ background: 'transparent', border: 'none', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 800, color: '#00ff66', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
               title={t('header.openProfile')}
             >
-              @{currentUser.username}
+              {currentUser.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.username}
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #a78bfa' }}
+                />
+              ) : (
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#181028', border: '1px solid #a78bfa', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', fontWeight: 900 }}>
+                  {currentUser.username.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>
+                @{currentUser.username}
+              </span>
             </button>
+            
             <button
               type="button"
               onClick={onLogout}
-              style={{ background: '#1a0505', border: '1px solid #ff0055', color: '#ff5588', padding: '0 0.6rem', height: '26px', boxSizing: 'border-box', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer', marginLeft: '6px' }}
+              style={{ background: 'transparent', border: 'none', color: '#ff5588', cursor: 'pointer', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s', marginLeft: '0.2rem' }}
               title={t('header.logout')}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#ff0055'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#ff5588'}
             >
-              {t('header.logout').toUpperCase()}
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, fontFamily: 'JetBrains Mono, monospace', border: '1px solid #ff3366', borderRadius: '12px', padding: '0.15rem 0.55rem', background: 'rgba(255, 0, 85, 0.08)' }}>
+                {t('header.logout').toUpperCase()}
+              </span>
             </button>
           </div>
         ) : (

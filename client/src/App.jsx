@@ -13,6 +13,7 @@ import DevPanel from './components/DevPanel';
 import UserProfilePage from './components/UserProfilePage';
 import { ChevronLeft, ChevronRight, ChevronsLeft, PlusCircle, Terminal } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
+import { getAuthToken } from './utils/auth';
 
 export default function App() {
   const { t } = useLanguage();
@@ -482,9 +483,13 @@ export default function App() {
     setImportingIds(prev => [...prev, externalPost.id]);
 
     try {
+      const token = getAuthToken(currentUser);
       const res = await fetch('/api/booru/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           title: externalPost.title,
           description: externalPost.description,
@@ -599,7 +604,7 @@ export default function App() {
             {/* Top Info Bar with Quick Page indicator */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
               <span className="font-mono" style={{ fontSize: '0.85rem', color: '#888' }}>
-                {t('app.booruResultsHeader', { site: selectedBooruSite.toUpperCase() })} <strong style={{ color: '#a78bfa' }}>{safeBooruPosts.length}</strong> {t('app.booruResultsCount')} | {t('app.booruResultsPage')} <strong style={{ color: '#fff', backgroundColor: '#1a1a1a', padding: '0.2rem 0.6rem', border: '1px solid #a78bfa' }}>#{booruPage}</strong>
+                {t('app.booruResultsHeader', { site: (t(`booruSites.${selectedBooruSite}.name`) !== `booruSites.${selectedBooruSite}.name` ? t(`booruSites.${selectedBooruSite}.name`) : selectedBooruSite).toUpperCase() })} <strong style={{ color: '#a78bfa' }}>{safeBooruPosts.length}</strong> {t('app.booruResultsCount')} | {t('app.booruResultsPage')} <strong style={{ color: '#fff', backgroundColor: '#1a1a1a', padding: '0.2rem 0.6rem', border: '1px solid #a78bfa' }}>#{booruPage}</strong>
               </span>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -881,6 +886,13 @@ export default function App() {
               onRequireAuth={handleRequireAuth}
               onLike={handleLike}
               onOpenProfile={handleOpenProfile}
+              onLogout={handleLogout}
+              onUpdateUser={(updatedFields) => {
+                if (!currentUser) return;
+                const newCur = { ...currentUser, ...updatedFields };
+                setCurrentUser(newCur);
+                localStorage.setItem('prismshare_current_user', JSON.stringify(newCur));
+              }}
             />
           </div>
         ) : null}
@@ -890,6 +902,7 @@ export default function App() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onSuccess={handleUploadSuccess}
+        currentUser={currentUser}
       />
 
       {selectedPostForModal && (

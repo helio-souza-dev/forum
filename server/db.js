@@ -438,11 +438,25 @@ class Database {
       posts.sort((a, b) => b.likes - a.likes);
     }
 
-    return posts;
+    return posts.map(p => {
+      const uName = (p.uploader || p.author || '').toLowerCase();
+      const user = uName ? this.data.users.find(u => u.username.toLowerCase() === uName) : null;
+      return {
+        ...p,
+        uploaderAvatarUrl: user ? (user.avatarUrl || '') : ''
+      };
+    });
   }
 
   getPostById(id) {
-    return this.data.posts.find(p => p.id === id);
+    const post = this.data.posts.find(p => p.id === id);
+    if (!post) return null;
+    const uName = (post.uploader || post.author || '').toLowerCase();
+    const user = uName ? this.data.users.find(u => u.username.toLowerCase() === uName) : null;
+    return {
+      ...post,
+      uploaderAvatarUrl: user ? (user.avatarUrl || '') : ''
+    };
   }
 
   addPost(postData) {
@@ -465,7 +479,7 @@ class Database {
     };
     this.data.posts.unshift(newPost);
     this.save('post', newPost);
-    return newPost;
+    return this.getPostById(newPost.id);
   }
 
   likePost(id, username) {

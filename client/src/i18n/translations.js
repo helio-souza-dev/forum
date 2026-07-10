@@ -106,7 +106,7 @@ export const translations = {
       importing: 'Salvando...',
     },
     booruBar: {
-      title: 'Busca externa em Boorus',
+      title: 'Busca Booru',
       proxyBadge: 'Proxy ativo',
       allMedia: 'Todas as mídias',
       videoOnly: 'Somente vídeos (.mp4/.webm)',
@@ -116,7 +116,14 @@ export const translations = {
       tagAvailable: 'Tag disponível',
       searchSubmit: 'Buscar',
       searching: 'Buscando...',
-      footerHint: 'A mídia é transmitida via proxy sem erros de CORS. Clique no botão de qualquer card para salvar no seu feed.',
+      footerHint: 'Proxy anti-CORS ativo. Clique no card para salvar no feed.',
+    },
+    booruSites: {
+      sb: { name: 'Safebooru', desc: 'Arte geral segura' },
+      'sakugabooru.com': { name: 'Sakugabooru', desc: 'Clipes de animação' },
+      gb: { name: 'Gelbooru', desc: 'Galeria geral de animes' },
+      kn: { name: 'Konachan', desc: 'Wallpapers em alta resolução' },
+      yd: { name: 'Yande.re', desc: 'Scans e ilustrações digitais' }
     },
     cinemaModal: {
       byAuthor: 'Autor: @{author}',
@@ -376,7 +383,7 @@ export const translations = {
       importing: 'Saving...',
     },
     booruBar: {
-      title: 'External Boorus Search',
+      title: 'Booru Search',
       proxyBadge: 'Active proxy',
       allMedia: 'All media',
       videoOnly: 'Videos only (.mp4/.webm)',
@@ -386,7 +393,14 @@ export const translations = {
       tagAvailable: 'Tag available',
       searchSubmit: 'Search',
       searching: 'Searching...',
-      footerHint: 'Media is streamed via proxy without CORS errors. Click the button on any card to save it to your feed.',
+      footerHint: 'Anti-CORS proxy active. Click any card to save to feed.',
+    },
+    booruSites: {
+      sb: { name: 'Safebooru', desc: 'General safe artwork' },
+      'sakugabooru.com': { name: 'Sakugabooru', desc: 'Animation clips' },
+      gb: { name: 'Gelbooru', desc: 'General anime gallery' },
+      kn: { name: 'Konachan', desc: 'High-res wallpapers' },
+      yd: { name: 'Yande.re', desc: 'Digital scans & artwork' }
     },
     cinemaModal: {
       byAuthor: 'Author: @{author}',

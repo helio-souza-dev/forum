@@ -2,11 +2,11 @@ const Booru = require('@himeka/booru');
 const https = require('https');
 
 const SITES_CONFIG = [
-  { id: 'sb', name: 'Safebooru (Safe)', desc: 'Arte segura de anime e games com vídeos e ilustrações', defaultTags: ['animated'], siteDomain: 'https://safebooru.org/' },
-  { id: 'sakugabooru.com', name: 'Sakugabooru (Vídeos & Animações)', desc: 'Clipes em vídeo .mp4/.webm de animação 2D e 3D', defaultTags: [], siteDomain: 'https://www.sakugabooru.com/' },
-  { id: 'gb', name: 'Gelbooru (Animes & Vídeos)', desc: 'Enorme galeria geral de animes, arts, gifs e vídeos curtos', defaultTags: ['animated'], siteDomain: 'https://gelbooru.com/' },
-  { id: 'kn', name: 'Konachan.net (High-Res)', desc: 'Wallpapers e artes de altíssima resolução', defaultTags: [], siteDomain: 'https://konachan.net/' },
-  { id: 'yd', name: 'Yande.re (Scans)', desc: 'Artes escaneadas e ilustrações digitais', defaultTags: [], siteDomain: 'https://yande.re/' }
+  { id: 'sb', name: 'Safebooru', desc: 'Arte geral segura', defaultTags: ['animated'], siteDomain: 'https://safebooru.org/' },
+  { id: 'sakugabooru.com', name: 'Sakugabooru', desc: 'Clipes de animação', defaultTags: [], siteDomain: 'https://www.sakugabooru.com/' },
+  { id: 'gb', name: 'Gelbooru', desc: 'Galeria geral de animes', defaultTags: ['animated'], siteDomain: 'https://gelbooru.com/' },
+  { id: 'kn', name: 'Konachan', desc: 'Wallpapers em alta resolução', defaultTags: [], siteDomain: 'https://konachan.net/' },
+  { id: 'yd', name: 'Yande.re', desc: 'Scans e ilustrações digitais', defaultTags: [], siteDomain: 'https://yande.re/' }
 ];
 
 function getAvailableSites() {
@@ -71,6 +71,67 @@ async function fetchGelbooruJson(tagsArray, pageNum, limitNum) {
   }));
 }
 
+async function fetchGelbooruHtml(tagsArray, pageNum, limitNum) {
+  const pid = (pageNum - 1) * 42;
+  const tagQuery = encodeURIComponent(tagsArray.join(' '));
+  const url = `https://gelbooru.com/index.php?page=post&s=list&tags=${tagQuery}&pid=${pid}`;
+
+  const html = await fetchDirectHtml(url);
+  const articles = html.match(/<article[^>]*>[\s\S]*?<\/article>/gi) || [];
+  
+  const posts = [];
+  for (const art of articles.slice(0, limitNum)) {
+    const idMatch = art.match(/id=["']?p(\d+)["']?/i) || art.match(/id=(\d+)/i);
+    const id = idMatch ? idMatch[1] : Math.random().toString(36).substring(2, 9);
+    
+    const imgMatch = art.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+    if (!imgMatch) continue;
+    
+    const thumbUrl = imgMatch[1].startsWith('http') ? imgMatch[1] : `https:${imgMatch[1]}`;
+    
+    const titleMatch = art.match(/title=["']([^"']+)["']/i);
+    const titleText = titleMatch ? titleMatch[1] : '';
+    const tags = titleText.split(/[ ,]+/).map(t => t.trim()).filter(t => !t.startsWith('score:') && !t.startsWith('rating:'));
+    
+    const isWebm = art.includes('class="webm"') || art.includes("class='webm'") || tags.includes('video') || tags.includes('webm') || tags.includes('mp4') || tags.includes('animated');
+    const isGif = thumbUrl.toLowerCase().includes('.gif') || tags.includes('gif');
+    
+    let fileUrl = thumbUrl;
+    if (thumbUrl.includes('/thumbnails/')) {
+      const baseNameMatch = thumbUrl.match(/thumbnail_([^\.]+)\.([a-z0-9]+)$/i);
+      if (baseNameMatch) {
+        const hash = baseNameMatch[1];
+        const ext = isWebm ? 'mp4' : isGif ? 'gif' : baseNameMatch[2];
+        fileUrl = thumbUrl.replace('/thumbnails/', '/images/').replace(`thumbnail_${hash}.${baseNameMatch[2]}`, `${hash}.${ext}`);
+      }
+    }
+    
+    posts.push({
+      id,
+      fileUrl,
+      previewUrl: thumbUrl,
+      tags,
+      score: 0,
+      rating: 'q',
+      source: `https://gelbooru.com/index.php?page=post&s=view&id=${id}`,
+      owner: 'Gelbooru User',
+      type: isWebm ? 'video' : isGif ? 'gif' : 'image'
+    });
+  }
+  
+  return posts;
+}
+
+async function fetchGelbooruPosts(tagsArray, pageNum, limitNum) {
+  try {
+    const posts = await fetchGelbooruJson(tagsArray, pageNum, limitNum);
+    if (posts && posts.length > 0) return posts;
+  } catch (err) {
+    console.log('[Booru] API JSON de Gelbooru respondeu 401/erro, acionando scraper HTML de fallback...');
+  }
+  return await fetchGelbooruHtml(tagsArray, pageNum, limitNum);
+}
+
 async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', page = 1 }) {
   const siteConfig = SITES_CONFIG.find(s => s.id === site || s.name.toLowerCase().includes(site)) || SITES_CONFIG[0];
   const siteDomain = siteConfig.siteDomain;
@@ -107,7 +168,7 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
   } catch (booruErr) {
     try {
       if (site === 'gb') {
-        rawPosts = await fetchGelbooruJson(tagsArray, pageNum, limitNum);
+        rawPosts = await fetchGelbooruPosts(tagsArray, pageNum, limitNum);
       } else {
         const tagQuery = encodeURIComponent(tagsArray.join(' '));
         let apiUrl = '';

@@ -282,8 +282,8 @@ app.post('/api/booru/import', (req, res) => {
       url: postData.url,
       type: postData.type || 'image',
       tags: Array.isArray(postData.tags) ? postData.tags : [],
-      uploader: postData.uploader || postData.author || 'Anônimo',
-      author: postData.author || postData.uploader || '',
+      uploader: payload ? payload.username : (postData.uploader || postData.author || 'Anônimo'),
+      author: payload ? payload.username : (postData.author || postData.uploader || ''),
       source: postData.source || ''
     });
 
@@ -427,6 +427,9 @@ app.post('/api/media', upload.single('file'), (req, res) => {
     } else if (Array.isArray(tags)) {
       parsedTags = tags.map(t => String(t).trim().toLowerCase().replace(/^#/, '')).filter(Boolean);
     }
+    const token = auth.extractBearerToken(req);
+    const payload = token ? auth.verifyToken(token) : null;
+    const authUser = payload ? payload.username : null;
 
     const newPost = db.addPost({
       title,
@@ -435,8 +438,8 @@ app.post('/api/media', upload.single('file'), (req, res) => {
       url: req.file ? `/uploads/${filename}` : url,
       type: type || 'image',
       tags: parsedTags,
-      uploader: req.body.uploader || req.body.author || 'Anônimo',
-      author: req.body.author || req.body.uploader || '',
+      uploader: authUser || req.body.uploader || req.body.author || 'Anônimo',
+      author: authUser || req.body.author || req.body.uploader || '',
       source: req.body.source || ''
     });
 

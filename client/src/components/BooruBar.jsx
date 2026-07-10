@@ -174,6 +174,16 @@ export default function BooruBar({
   };
 
   const safeSites = Array.isArray(sites) ? sites : [];
+  const getSiteName = (site) => {
+    if (!site) return 'Booru';
+    const trans = t(`booruSites.${site.id}.name`);
+    return trans !== `booruSites.${site.id}.name` ? trans : (site.name || 'Booru');
+  };
+  const getSiteDesc = (site) => {
+    if (!site) return '';
+    const trans = t(`booruSites.${site.id}.desc`);
+    return trans !== `booruSites.${site.id}.desc` ? trans : (site.desc || '');
+  };
   const currentSiteInfo = safeSites.find(s => s.id === selectedSite) || safeSites[0] || {};
 
   return (
@@ -265,8 +275,8 @@ export default function BooruBar({
               onMouseEnter={(e) => !isSelected && (e.currentTarget.style.borderColor = '#444')}
               onMouseLeave={(e) => !isSelected && (e.currentTarget.style.borderColor = '#222')}
             >
-              <div style={{ color: isSelected ? '#a78bfa' : '#fff' }}>{s.name}</div>
-              <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 400 }}>{s.desc}</div>
+              <div style={{ color: isSelected ? '#a78bfa' : '#fff' }}>{getSiteName(s)}</div>
+              <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 400 }}>{getSiteDesc(s)}</div>
             </button>
           );
         })}
@@ -278,7 +288,7 @@ export default function BooruBar({
           <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
           <input
             type="text"
-            placeholder={t('booruBar.searchPlaceholder', { site: currentSiteInfo.name || 'Booru' })}
+            placeholder={t('booruBar.searchPlaceholder', { site: getSiteName(currentSiteInfo) })}
             value={localTagInput}
             onChange={(e) => {
               setLocalTagInput(e.target.value);
