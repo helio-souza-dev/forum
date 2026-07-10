@@ -1,0 +1,7 @@
+# Segredos gerados localmente — nunca commitar
+server/data/jwt_secret.txt
+.env
+**/.env
+
+# Dependências (reinstaláveis via npm install)
+node_modules/
