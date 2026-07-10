@@ -2,6 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+require('dotenv').config();
+const mongoose = require('mongoose');
+const PostModel = require('./models/Post');
+const UserModel = require('./models/User');
+const AuditLogModel = require('./models/AuditLog');
 
 // Hash sha256 "puro" (sem salt) usado nas versões antigas do PrismShare.
 // Mantido só para reconhecer e migrar automaticamente senhas antigas para bcrypt.
@@ -138,10 +143,43 @@ class Database {
   constructor() {
     this.data = { posts: [], users: [], auditLog: [] };
     this.startTime = Date.now();
-    this.load();
+    this.mongoConnected = false;
+    this.init();
   }
 
-  load() {
+  async init() {
+    this.loadLocal();
+    const uri = process.env.MONGODB_URI;
+    if (uri) {
+      try {
+        await mongoose.connect(uri);
+        this.mongoConnected = true;
+        console.log('✅ [Database] Conectado com sucesso ao MongoDB Atlas NoSQL!');
+        await this.loadFromMongo();
+      } catch (err) {
+        console.error('⚠️ [Database] Falha ao conectar com MongoDB Atlas, usando modo local:', err.message);
+      }
+    }
+  }
+
+  async loadFromMongo() {
+    try {
+      const posts = await PostModel.find().sort({ createdAt: -1 }).lean();
+      const users = await UserModel.find().lean();
+      const auditLog = await AuditLogModel.find().sort({ createdAt: -1 }).limit(500).lean();
+
+      if (posts && posts.length > 0) this.data.posts = posts;
+      if (users && users.length > 0) this.data.users = users;
+      if (auditLog && auditLog.length > 0) this.data.auditLog = auditLog;
+
+      this._ensureDevUser();
+      console.log(`📡 [MongoDB Cache] Carregado na memória: ${this.data.posts.length} Posts, ${this.data.users.length} Usuários, ${this.data.auditLog.length} Logs de Auditoria.`);
+    } catch (err) {
+      console.error('Erro ao ler do MongoDB Atlas:', err);
+    }
+  }
+
+  loadLocal() {
     try {
       if (fs.existsSync(DB_FILE)) {
         const fileContent = fs.readFileSync(DB_FILE, 'utf-8');
@@ -167,23 +205,24 @@ class Database {
     this._ensureDevUser();
   }
 
+  load() {
+    this.loadLocal();
+  }
+
   _ensureDevUser() {
     const devExists = this.data.users.find(u => u.username.toLowerCase() === 'dev');
     if (!devExists) {
-      // A senha do usuário dev padrão NUNCA é fixa no código.
-      // Use a variável de ambiente PRISMSHARE_DEV_PASSWORD para definir uma senha
-      // conhecida (ex.: em desenvolvimento local); caso contrário, uma senha
-      // aleatória é gerada e impressa no console UMA única vez.
       const devPassword = process.env.PRISMSHARE_DEV_PASSWORD || crypto.randomBytes(9).toString('base64url');
       const passwordHash = bcrypt.hashSync(devPassword, 10);
-      this.data.users.push({
+      const newUser = {
         id: crypto.randomUUID(),
         username: 'dev',
         passwordHash,
         role: 'dev',
         createdAt: new Date().toISOString()
-      });
-      this.save();
+      };
+      this.data.users.push(newUser);
+      this.save('user', newUser);
       if (!process.env.PRISMSHARE_DEV_PASSWORD) {
         console.log('==================================================================');
         console.log(`[Auth] Usuário "dev" criado. Senha gerada automaticamente: ${devPassword}`);
@@ -193,15 +232,31 @@ class Database {
       }
     } else if (!devExists.role || devExists.role !== 'dev') {
       devExists.role = 'dev';
-      this.save();
+      this.save('user', devExists);
     }
   }
 
-  save() {
+  save(targetType, item) {
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('Erro ao salvar DB:', err);
+      console.error('Erro ao salvar DB local:', err);
+    }
+
+    if (this.mongoConnected && targetType && item) {
+      if (targetType === 'post') {
+        const cleanPost = JSON.parse(JSON.stringify(item));
+        delete cleanPost._id; delete cleanPost.__v;
+        PostModel.updateOne({ id: cleanPost.id }, { $set: cleanPost }, { upsert: true }).catch(e => console.error('Erro sync Mongo Post:', e.message));
+      } else if (targetType === 'user') {
+        const cleanUser = JSON.parse(JSON.stringify(item));
+        delete cleanUser._id; delete cleanUser.__v;
+        UserModel.updateOne({ id: cleanUser.id }, { $set: cleanUser }, { upsert: true }).catch(e => console.error('Erro sync Mongo User:', e.message));
+      } else if (targetType === 'audit') {
+        const cleanAudit = JSON.parse(JSON.stringify(item));
+        delete cleanAudit._id; delete cleanAudit.__v;
+        AuditLogModel.updateOne({ id: cleanAudit.id }, { $set: cleanAudit }, { upsert: true }).catch(e => console.error('Erro sync Mongo Audit:', e.message));
+      }
     }
   }
 
@@ -228,7 +283,7 @@ class Database {
       createdAt: new Date().toISOString()
     };
     this.data.users.push(newUser);
-    this.save();
+    this.save('user', newUser);
     return { id: newUser.id, username: newUser.username, role: newUser.role, createdAt: newUser.createdAt };
   }
 
@@ -262,7 +317,7 @@ class Database {
     }
 
     if (!user.role) user.role = 'user';
-    this.save();
+    this.save('user', user);
     return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
   }
 
@@ -341,7 +396,7 @@ class Database {
       createdAt: new Date().toISOString()
     };
     this.data.posts.unshift(newPost);
-    this.save();
+    this.save('post', newPost);
     return newPost;
   }
 
@@ -361,7 +416,7 @@ class Database {
       } else {
         throw new Error('Usuário precisa estar logado para curtir de verdade.');
       }
-      this.save();
+      this.save('post', post);
       return post;
     }
     return null;
@@ -371,7 +426,7 @@ class Database {
     const post = this.getPostById(id);
     if (post) {
       post.views = (post.views || 0) + 1;
-      this.save();
+      this.save('post', post);
       return post;
     }
     return null;
@@ -388,7 +443,7 @@ class Database {
       };
       if (!post.comments) post.comments = [];
       post.comments.push(newComment);
-      this.save();
+      this.save('post', post);
       return newComment;
     }
     return null;
@@ -419,7 +474,7 @@ class Database {
     post.bannedBy = bannedBy || 'Sistema';
     post.bannedAt = new Date().toISOString();
     this.addAuditEntry({ action: 'BAN', targetId: id, targetTitle: post.title, performedBy: bannedBy, reason });
-    this.save();
+    this.save('post', post);
     return post;
   }
 
@@ -432,7 +487,7 @@ class Database {
     post.bannedBy = null;
     post.bannedAt = null;
     this.addAuditEntry({ action: 'UNBAN', targetId: id, targetTitle: post.title, performedBy, reason: `Removido ban anterior: ${oldReason}` });
-    this.save();
+    this.save('post', post);
     return post;
   }
 
@@ -451,7 +506,7 @@ class Database {
     const oldRole = user.role || 'user';
     user.role = newRole;
     this.addAuditEntry({ action: 'ROLE_CHANGE', targetId: userId, targetTitle: user.username, performedBy, reason: `${oldRole} -> ${newRole}` });
-    this.save();
+    this.save('user', user);
     return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
   }
 
@@ -463,7 +518,7 @@ class Database {
 
   addAuditEntry({ action, targetId, targetTitle, performedBy, reason }) {
     if (!this.data.auditLog) this.data.auditLog = [];
-    this.data.auditLog.unshift({
+    const newEntry = {
       id: crypto.randomUUID(),
       action,
       targetId,
@@ -471,12 +526,13 @@ class Database {
       performedBy: performedBy || 'Sistema',
       reason: reason || '',
       createdAt: new Date().toISOString()
-    });
+    };
+    this.data.auditLog.unshift(newEntry);
     // Manter no máximo 500 entradas
     if (this.data.auditLog.length > 500) {
       this.data.auditLog = this.data.auditLog.slice(0, 500);
     }
-    this.save();
+    this.save('audit', newEntry);
   }
 
   getAuditLog() {
