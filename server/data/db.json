@@ -54,9 +54,11 @@
         "pauldrons",
         "polearm"
       ],
-      "likes": 0,
-      "likedBy": [],
-      "views": 0,
+      "likes": 1,
+      "likedBy": [
+        "dev"
+      ],
+      "views": 2,
       "comments": [],
       "createdAt": "2026-07-10T03:09:12.728Z"
     },
