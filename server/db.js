@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const PostModel = require('./models/Post');
 const UserModel = require('./models/User');
 const AuditLogModel = require('./models/AuditLog');
+const ReportModel = require('./models/Report');
 
 // Hash sha256 "puro" (sem salt) usado nas versões antigas do PrismShare.
 // Mantido só para reconhecer e migrar automaticamente senhas antigas para bcrypt.
@@ -298,6 +299,8 @@ class Database {
       bio: newUser.bio || 'Olá! Sou um membro ativo do PrismShare.',
       bannerUrl: newUser.bannerUrl || '',
       privacy: newUser.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      followers: [],
+      following: [],
       createdAt: newUser.createdAt
     };
   }
@@ -338,6 +341,8 @@ class Database {
       bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
       bannerUrl: user.bannerUrl || '',
       privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      followers: user.followers || [],
+      following: user.following || [],
       createdAt: user.createdAt
     };
   }
@@ -355,6 +360,8 @@ class Database {
       bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
       bannerUrl: user.bannerUrl || '',
       privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      followers: user.followers || [],
+      following: user.following || [],
       createdAt: user.createdAt
     };
   }
@@ -371,6 +378,8 @@ class Database {
       bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
       bannerUrl: user.bannerUrl || '',
       privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      followers: user.followers || [],
+      following: user.following || [],
       createdAt: user.createdAt
     };
   }
@@ -397,8 +406,80 @@ class Database {
       bio: user.bio || 'Olá! Sou um membro ativo do PrismShare.',
       bannerUrl: user.bannerUrl || '',
       privacy: user.privacy || { showLikes: true, showPosts: true, allowComments: true },
+      followers: user.followers || [],
+      following: user.following || [],
       createdAt: user.createdAt
     };
+  }
+
+  toggleFollowUser(targetUsername, followerUsername) {
+    if (!targetUsername || !followerUsername) return null;
+    if (targetUsername.trim().toLowerCase() === followerUsername.trim().toLowerCase()) return null;
+    const target = this.data.users.find(u => u.username.toLowerCase() === targetUsername.trim().toLowerCase());
+    const follower = this.data.users.find(u => u.username.toLowerCase() === followerUsername.trim().toLowerCase());
+    if (!target || !follower) return null;
+
+    if (!target.followers) target.followers = [];
+    if (!target.following) target.following = [];
+    if (!follower.followers) follower.followers = [];
+    if (!follower.following) follower.following = [];
+
+    const isAlreadyFollowing = target.followers.some(u => u.toLowerCase() === follower.username.toLowerCase());
+    if (isAlreadyFollowing) {
+      target.followers = target.followers.filter(u => u.toLowerCase() !== follower.username.toLowerCase());
+      follower.following = follower.following.filter(u => u.toLowerCase() !== target.username.toLowerCase());
+    } else {
+      target.followers.push(follower.username);
+      follower.following.push(target.username);
+    }
+
+    this.save('user', target);
+    this.save('user', follower);
+    return {
+      isFollowing: !isAlreadyFollowing,
+      followersCount: target.followers.length,
+      followingCount: target.following.length,
+      followers: target.followers,
+      following: target.following
+    };
+  }
+
+  universalSearch(query) {
+    if (!query || !query.trim()) return { users: [], posts: [], tags: [] };
+    const q = query.trim().toLowerCase();
+    
+    const users = (this.data.users || [])
+      .filter(u => u.username.toLowerCase().includes(q) || (u.bio && u.bio.toLowerCase().includes(q)))
+      .slice(0, 6)
+      .map(u => ({
+        username: u.username,
+        avatarUrl: u.avatarUrl || '',
+        role: u.role || 'user',
+        followersCount: (u.followers || []).length
+      }));
+
+    const posts = (this.data.posts || [])
+      .filter(p => !p.banned && (p.title.toLowerCase().includes(q) || (p.uploader && p.uploader.toLowerCase().includes(q)) || (p.author && p.author.toLowerCase().includes(q))))
+      .slice(0, 6)
+      .map(p => ({
+        id: p.id,
+        title: p.title,
+        url: p.url,
+        type: p.type,
+        uploader: p.uploader || p.author || 'Anônimo'
+      }));
+
+    const matchingTags = new Set();
+    (this.data.posts || []).forEach(p => {
+      if (!p.banned && p.tags) {
+        p.tags.forEach(t => {
+          if (t.toLowerCase().includes(q)) matchingTags.add(t);
+        });
+      }
+    });
+    const tags = Array.from(matchingTags).slice(0, 8);
+
+    return { users, posts, tags };
   }
 
   /* ==========================================================================
@@ -466,11 +547,14 @@ class Database {
       description: postData.description || '',
       filename: postData.filename,
       url: postData.url || `/uploads/${postData.filename}`,
+      rawUrl: postData.rawUrl || postData.url || `/uploads/${postData.filename}`,
+      previewUrl: postData.previewUrl || postData.url || `/uploads/${postData.filename}`,
       type: postData.type || 'image',
       tags: Array.isArray(postData.tags) ? postData.tags : [],
       uploader: postData.uploader || postData.author || 'Anônimo',
       author: postData.author || postData.uploader || '',
       source: postData.source || '',
+      nsfw: Boolean(postData.nsfw),
       likes: 0,
       likedBy: [],
       views: 0,
@@ -578,6 +662,8 @@ class Database {
       id: u.id,
       username: u.username,
       role: u.role || 'user',
+      avatarUrl: u.avatarUrl || '',
+      followersCount: (u.followers || []).length,
       createdAt: u.createdAt
     }));
   }
@@ -596,6 +682,119 @@ class Database {
     if (!username) return null;
     const user = this.data.users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
     return user ? (user.role || 'user') : null;
+  }
+
+  /* ==========================================================================
+     REPORTS & ANTI-ABUSE REPOSITORY METHODS
+     ========================================================================== */
+  createReport({ targetId, reportedBy, reason, details }) {
+    if (!this.data.reports) this.data.reports = [];
+    const reporter = this.getUserByUsername(reportedBy);
+    if (reporter && reporter.reportBanned) {
+      const err = new Error('Você está bloqueado de abrir denúncias devido a múltiplas denúncias falsas ou abusivas.');
+      err.status = 403;
+      throw err;
+    }
+
+    const post = this.getPostById(targetId);
+    if (!post) {
+      const err = new Error('Mídia não encontrada.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Checar se o usuário já denunciou esse post com pendência
+    const existingPending = this.data.reports.find(r => r.targetId === targetId && r.reportedBy.toLowerCase() === reportedBy.trim().toLowerCase() && r.status === 'pending');
+    if (existingPending) {
+      const err = new Error('Você já possui uma denúncia pendente para esta mídia.');
+      err.status = 400;
+      throw err;
+    }
+
+    const newReport = {
+      id: crypto.randomUUID(),
+      targetId,
+      targetTitle: post.title || 'Mídia Sem Título',
+      reportedBy: reportedBy.trim(),
+      reason,
+      details: details || '',
+      status: 'pending',
+      resolvedBy: null,
+      resolvedAt: null,
+      createdAt: new Date().toISOString()
+    };
+
+    this.data.reports.unshift(newReport);
+    this.addAuditEntry({ action: 'REPORT_CREATE', targetId, targetTitle: post.title, performedBy: reportedBy, reason: `${reason}: ${details || ''}` });
+    this.save('report', newReport);
+
+    // Auto-quarentena / auto-review se acumular 4+ denúncias pendentes de usuários diferentes
+    const pendingCount = this.data.reports.filter(r => r.targetId === targetId && r.status === 'pending').length;
+    if (pendingCount >= 4 && !post.banned) {
+      post.banned = true;
+      post.banReason = 'Em revisão: Mídia com alto volume de denúncias da comunidade.';
+      post.bannedBy = 'Sistema (Auto-Quarentena)';
+      post.bannedAt = new Date().toISOString();
+      this.save('post', post);
+    }
+
+    return newReport;
+  }
+
+  getReports({ status } = {}) {
+    if (!this.data.reports) this.data.reports = [];
+    let list = [...this.data.reports];
+    if (status && status !== 'all') {
+      list = list.filter(r => r.status === status);
+    }
+    return list;
+  }
+
+  resolveReport(reportId, performedBy, action, { banReason } = {}) {
+    if (!this.data.reports) this.data.reports = [];
+    const report = this.data.reports.find(r => r.id === reportId);
+    if (!report) {
+      const err = new Error('Denúncia não encontrada.');
+      err.status = 404;
+      throw err;
+    }
+
+    report.resolvedBy = performedBy;
+    report.resolvedAt = new Date().toISOString();
+
+    if (action === 'ban') {
+      report.status = 'resolved_ban';
+      this.banPost(report.targetId, { reason: banReason || `Denúncia acatada (${report.reason})`, bannedBy: performedBy });
+    } else if (action === 'dismiss') {
+      report.status = 'dismissed';
+      this.addAuditEntry({ action: 'REPORT_DISMISS', targetId: report.targetId, targetTitle: report.targetTitle, performedBy, reason: `Denúncia descartada (${report.id})` });
+    } else if (action === 'dismiss_abuse') {
+      report.status = 'dismissed_abuse';
+      const reporter = this.data.users.find(u => u.username.toLowerCase() === report.reportedBy.toLowerCase());
+      if (reporter) {
+        reporter.falseReportsCount = (reporter.falseReportsCount || 0) + 1;
+        if (reporter.falseReportsCount >= 3) {
+          reporter.reportBanned = true;
+          this.addAuditEntry({ action: 'REPORT_BAN_USER', targetId: reporter.id, targetTitle: reporter.username, performedBy, reason: `Bloqueado de denunciar por acumular 3 denúncias falsas ou abusivas.` });
+        } else {
+          this.addAuditEntry({ action: 'REPORT_PENALTY', targetId: reporter.id, targetTitle: reporter.username, performedBy, reason: `Denúncia falsa/abusiva registrada (${reporter.falseReportsCount}/3).` });
+        }
+        this.save('user', reporter);
+      }
+    }
+
+    this.save('report', report);
+    return report;
+  }
+
+  updateUserAgeAndContent(username, { ageVerified, birthDate, contentPreference }) {
+    const user = this.data.users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    if (!user) return null;
+    if (ageVerified !== undefined) user.ageVerified = ageVerified;
+    if (birthDate !== undefined) user.birthDate = birthDate;
+    if (contentPreference !== undefined) user.contentPreference = contentPreference;
+    this.save('user', user);
+    return user;
   }
 
   addAuditEntry({ action, targetId, targetTitle, performedBy, reason }) {

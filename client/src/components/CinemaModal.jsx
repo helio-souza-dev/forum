@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { X, Heart, Eye, Film, Image as ImageIcon, Zap, Hash, MessageSquare, Send, Calendar, Download, Globe } from 'lucide-react';
+import { X, Heart, Eye, Film, Image as ImageIcon, Zap, Hash, MessageSquare, Send, Calendar, Download, Globe, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import AgeGateModal from './AgeGateModal';
+import ReportModal from './ReportModal';
 
 export default function CinemaModal({ post, onClose, onLike, onTagClick, onCommentAdd, onImportPost, importingIds = [], currentUser = null, onRequireAuth, onOpenProfile }) {
   const { t } = useLanguage();
@@ -11,6 +13,36 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
   const [commentText, setCommentText] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [showAgeGate, setShowAgeGate] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const contentPref = currentUser
+    ? (currentUser.contentPreference || (currentUser.username ? localStorage.getItem(`user_content_pref_${currentUser.username}`) : null) || 'blur')
+    : (localStorage.getItem('guest_content_pref') || localStorage.getItem('user_content_pref') || 'blur');
+
+  const isNsfw = Boolean(post.nsfw || (post.external && post.siteDomain && !post.siteDomain.toLowerCase().includes('safebooru')) || (post.external && post.siteName && !post.siteName.toLowerCase().includes('safebooru')));
+
+  const isAdultVerified = currentUser
+    ? Boolean(currentUser.ageVerified || (currentUser.username ? localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult' : false))
+    : (localStorage.getItem('guest_age_verified') === 'verified_adult');
+
+  const booruMode = localStorage.getItem('booru_nsfw_mode');
+
+  let shouldBlur = false;
+  if (isNsfw) {
+    if (contentPref === 'show_all') {
+      shouldBlur = !isAdultVerified && !isRevealed;
+    } else if (post.external) {
+      if (booruMode === 'reveal_all' && isAdultVerified) {
+        shouldBlur = false;
+      } else {
+        shouldBlur = !isRevealed;
+      }
+    } else {
+      shouldBlur = !isRevealed;
+    }
+  }
 
   // Video playback states
   const [currentTime, setCurrentTime] = useState(0);
@@ -282,7 +314,10 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                   maxHeight: '65vh',
                   objectFit: 'contain',
                   display: 'block',
-                  backgroundColor: '#000'
+                  backgroundColor: '#000',
+                  filter: shouldBlur ? 'blur(28px)' : 'none',
+                  transform: shouldBlur ? 'scale(1.08)' : 'none',
+                  transition: 'filter 0.3s ease, transform 0.3s ease'
                 }}
               />
               <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#0a0a0a', padding: '0.6rem 1rem', border: '1px solid #222' }}>
@@ -328,7 +363,10 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                   objectFit: 'contain',
                   display: 'block',
                   margin: '0 auto',
-                  cursor: 'zoom-in'
+                  cursor: 'zoom-in',
+                  filter: shouldBlur ? 'blur(28px)' : 'none',
+                  transform: shouldBlur ? 'scale(1.08)' : 'none',
+                  transition: 'filter 0.3s ease, transform 0.3s ease'
                 }}
               />
               <button
@@ -348,8 +386,44 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
                   gap: '0.5rem'
                 }}
               >
-                ⛶ ABRIR IMAGEM EM TELA CHEIA
+                ABRIR IMAGEM EM TELA CHEIA
               </button>
+            </div>
+          )}
+
+          {shouldBlur && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isAdultVerified) {
+                  setShowAgeGate(true);
+                } else {
+                  setIsRevealed(true);
+                }
+              }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: 'rgba(10, 0, 5, 0.75)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.8rem',
+                zIndex: 50,
+                cursor: 'pointer',
+                color: '#fff',
+                fontFamily: 'JetBrains Mono, monospace',
+                padding: '2rem',
+                textAlign: 'center'
+              }}
+            >
+              <div style={{ backgroundColor: '#ff0055', color: '#fff', padding: '0.65rem 1.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1rem', boxShadow: '0 0 25px rgba(255, 0, 85, 0.5)', letterSpacing: '0.08em' }}>
+                <span>{t('mediaCard.reveal') || 'REVELAR'}</span>
+              </div>
+              <span style={{ fontSize: '0.85rem', color: '#ccc', maxWidth: '450px' }}>
+                {t('mediaCard.sensitiveDesc') || 'Conteúdo sensível ou maduro'}
+              </span>
             </div>
           )}
         </div>
@@ -361,28 +435,51 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
               <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', lineHeight: 1.3, margin: 0, flex: 1 }}>
                 {post.title || 'Mídia sem título'}
               </h2>
-              {(post.author || post.uploader || (post.external && post.siteName)) && (
-                <div
-                  onClick={() => onOpenProfile && onOpenProfile(post.author || post.uploader || post.siteName.split(' ')[0])}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {(post.author || post.uploader || (post.external && post.siteName)) && (
+                  <div
+                    onClick={() => onOpenProfile && onOpenProfile(post.author || post.uploader || post.siteName.split(' ')[0])}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                      border: '1px solid #a78bfa',
+                      color: '#a78bfa',
+                      padding: '0.4rem 0.85rem',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '0.85rem',
+                      fontWeight: 800,
+                      boxShadow: '0 0 12px rgba(167, 139, 250, 0.25)',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    👤 {t('cinemaModal.byAuthor', { author: post.author || post.uploader || post.siteName.split(' ')[0] }).toUpperCase()}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(true)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    backgroundColor: 'rgba(167, 139, 250, 0.15)',
-                    border: '1px solid #a78bfa',
-                    color: '#a78bfa',
+                    background: '#22080c',
+                    border: '1px solid #ff0055',
+                    color: '#ff3366',
                     padding: '0.4rem 0.85rem',
                     fontFamily: 'JetBrains Mono, monospace',
                     fontSize: '0.85rem',
                     fontWeight: 800,
-                    boxShadow: '0 0 12px rgba(167, 139, 250, 0.25)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
                     borderRadius: '4px',
-                    cursor: 'pointer'
+                    transition: 'all 0.15s'
                   }}
                 >
-                  👤 {t('cinemaModal.byAuthor', { author: post.author || post.uploader || post.siteName.split(' ')[0] }).toUpperCase()}
-                </div>
-              )}
+                  <AlertTriangle size={15} /> DENUNCIAR
+                </button>
+              </div>
             </div>
             
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', fontSize: '0.8rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', borderBottom: '1px solid #1f1f1f', paddingBottom: '1rem', marginBottom: '1rem' }}>
@@ -563,6 +660,30 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
           )}
         </div>
       </div>
+
+      {showAgeGate && (
+        <AgeGateModal
+          isOpen={showAgeGate}
+          isBooruGate={false}
+          onClose={() => setShowAgeGate(false)}
+          onSuccess={() => {
+            setShowAgeGate(false);
+            setIsRevealed(true);
+          }}
+          currentUser={currentUser}
+        />
+      )}
+
+      {showReportModal && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          post={post}
+          onSuccess={() => {
+            setShowReportModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

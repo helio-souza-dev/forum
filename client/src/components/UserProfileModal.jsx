@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Heart, Image as ImageIcon, Shield, Settings, Check, Lock, Calendar, Edit3, Eye, EyeOff } from 'lucide-react';
+import { X, User, Heart, Image as ImageIcon, Shield, Settings, Check, Lock, Calendar, Edit3, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import MediaCard from './MediaCard';
+import AgeGateModal from './AgeGateModal';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function UserProfileModal({ username, currentUser, onClose, onSelectPost, onOpenUpload, onRequireAuth, onLike }) {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,12 +20,98 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
   const [bio, setBio] = useState('');
   const [showLikes, setShowLikes] = useState(true);
   const [showPosts, setShowPosts] = useState(true);
+  const [contentPref, setContentPref] = useState('blur');
+  const [showAgeGate, setShowAgeGate] = useState(false);
+  const [pendingContentPref, setPendingContentPref] = useState(null);
 
   const isOwner = currentUser && currentUser.username && username && currentUser.username.toLowerCase() === username.toLowerCase();
 
   useEffect(() => {
     fetchProfile();
   }, [username, currentUser]);
+
+  const handleContentPrefChange = async (newPref) => {
+    if (!isOwner) return;
+    if (newPref === 'show_all' || newPref === 'blur') {
+      const isVerified = Boolean(currentUser?.ageVerified || (currentUser?.username && localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult'));
+      if (!isVerified) {
+        setPendingContentPref(newPref);
+        setShowAgeGate(true);
+        return;
+      }
+    }
+
+    setContentPref(newPref);
+    localStorage.setItem('user_content_pref', newPref);
+    if (currentUser?.username) {
+      localStorage.setItem(`user_content_pref_${currentUser.username}`, newPref);
+    }
+    if (newPref === 'hide_mature') {
+      localStorage.setItem('booru_nsfw_mode', 'hide');
+    } else if (newPref === 'show_all') {
+      localStorage.setItem('booru_nsfw_mode', 'reveal_all');
+    } else if (newPref === 'blur') {
+      localStorage.setItem('booru_nsfw_mode', 'blur_all');
+    }
+
+    const token = localStorage.getItem('prismshare_auth_token');
+    if (token) {
+      try {
+        await fetch('/api/users/settings/content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            contentPreference: newPref,
+            ageVerified: Boolean(currentUser?.ageVerified || (currentUser?.username && localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult'))
+          })
+        });
+      } catch (err) {
+        console.error('Erro ao salvar pref de conteudo:', err);
+      }
+    }
+  };
+
+  const handleAgeVerificationSuccess = async (data) => {
+    localStorage.setItem('age_verified', 'verified_adult');
+    if (currentUser?.username) {
+      localStorage.setItem(`age_verified_${currentUser.username}`, 'verified_adult');
+    }
+    const targetPref = pendingContentPref || 'blur';
+    setContentPref(targetPref);
+    localStorage.setItem('user_content_pref', targetPref);
+    if (currentUser?.username) {
+      localStorage.setItem(`user_content_pref_${currentUser.username}`, targetPref);
+    }
+    if (targetPref === 'show_all') {
+      localStorage.setItem('booru_nsfw_mode', 'reveal_all');
+    } else {
+      localStorage.setItem('booru_nsfw_mode', 'blur_all');
+    }
+
+    const token = localStorage.getItem('prismshare_auth_token');
+    if (token) {
+      try {
+        await fetch('/api/users/settings/content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ageVerified: true,
+            birthDate: data?.birthDate,
+            contentPreference: targetPref
+          })
+        });
+      } catch (err) {
+        console.error('Erro ao salvar verificação de idade no servidor:', err);
+      }
+    }
+    setPendingContentPref(null);
+  };
 
   const fetchProfile = async () => {
     try {
@@ -40,6 +129,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
       setBio(data.bio || 'Olá! Sou um membro ativo do PrismShare.');
       setShowLikes(data.privacy ? data.privacy.showLikes !== false : true);
       setShowPosts(data.privacy ? data.privacy.showPosts !== false : true);
+      setContentPref(data.contentPreference || localStorage.getItem('user_content_pref') || 'blur');
     } catch (err) {
       setError(err.message || 'Erro ao carregar dados do usuário.');
     } finally {
@@ -75,6 +165,21 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'Erro ao atualizar perfil.');
       }
+
+      if (token && contentPref) {
+        await fetch('/api/users/settings/content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            contentPreference: contentPref,
+            ageVerified: localStorage.getItem('age_verified') === 'verified_adult' || currentUser?.ageVerified || false
+          })
+        }).catch(err => console.error('Erro ao salvar pref de conteudo:', err));
+      }
+      localStorage.setItem('user_content_pref', contentPref);
 
       const updated = await res.json();
       setProfile(prev => ({ ...prev, ...updated }));
@@ -163,7 +268,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                 boxShadow: '0 0 10px rgba(0,0,0,0.5)'
               }}
             >
-              <Settings size={15} /> CONFIGURAR PERFIL
+              <Settings size={15} /> {t('userProfile.editProfile').toUpperCase()}
             </button>
           )}
           <button
@@ -189,13 +294,13 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
         {/* Loading / Error states */}
         {loading ? (
           <div style={{ padding: '5rem', textAlign: 'center', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace' }}>
-            CARREGANDO PERFIL NEON...
+            {t('userProfile.loading').toUpperCase()}
           </div>
         ) : error ? (
           <div style={{ padding: '4rem', textAlign: 'center', color: '#ff0055', fontFamily: 'JetBrains Mono, monospace' }}>
-            <p style={{ fontSize: '1.2rem', fontWeight: 800 }}>⚠️ {error}</p>
+            <p style={{ fontSize: '1.2rem', fontWeight: 800 }}>{error}</p>
             <button type="button" onClick={onClose} style={{ marginTop: '1.5rem', background: 'transparent', border: '1px solid #ff0055', color: '#ff0055', padding: '0.5rem 1.5rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800 }}>
-              FECHAR
+              {t('common.close').toUpperCase()}
             </button>
           </div>
         ) : profile ? (
@@ -262,7 +367,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                         boxShadow: profile.role === 'admin' || profile.role === 'dev' ? '0 0 10px rgba(255, 0, 85, 0.2)' : '0 0 10px rgba(0, 255, 102, 0.2)'
                       }}
                     >
-                      {profile.role === 'dev' ? '🔧 DESENVOLVEDOR' : profile.role === 'admin' ? '⚡ ADMINISTRADOR' : '✨ MEMBRO DA COMUNIDADE'}
+                      {profile.role === 'dev' ? t('userProfile.devBadge').toUpperCase() : profile.role === 'admin' ? t('userProfile.adminBadge').toUpperCase() : t('userProfile.memberBadge').toUpperCase()}
                     </span>
                   </div>
                   <p style={{ color: '#aaa', fontSize: '0.9rem', margin: '0.5rem 0 0 0', maxWidth: '600px', lineHeight: 1.4 }}>
@@ -270,7 +375,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   </p>
                   <div style={{ display: 'flex', gap: '1.2rem', marginTop: '0.6rem', fontSize: '0.75rem', color: '#666', fontFamily: 'JetBrains Mono, monospace' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <Calendar size={13} /> Membro desde {formatDate(profile.createdAt)}
+                      <Calendar size={13} /> {t('userProfile.memberSince', { date: formatDate(profile.createdAt) })}
                     </span>
                   </div>
                 </div>
@@ -282,19 +387,19 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace' }}>
                     {profile.stats ? profile.stats.postsCount : (profile.posts ? profile.posts.length : 0)}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.2rem' }}>POSTS PUBLICADOS</div>
+                  <div style={{ fontSize: '0.65rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.2rem' }}>{t('userProfile.statPosts').toUpperCase()}</div>
                 </div>
                 <div style={{ background: '#121212', border: '1px solid #222', padding: '0.7rem 1.2rem', textAlign: 'center', minWidth: '100px' }}>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ff0055', fontFamily: 'JetBrains Mono, monospace' }}>
                     {profile.stats ? profile.stats.likesReceived : 0}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.2rem' }}>CURTIDAS RECEBIDAS</div>
+                  <div style={{ fontSize: '0.65rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.2rem' }}>{t('userProfile.statLikes').toUpperCase()}</div>
                 </div>
                 <div style={{ background: '#121212', border: '1px solid #222', padding: '0.7rem 1.2rem', textAlign: 'center', minWidth: '100px' }}>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#00ff66', fontFamily: 'JetBrains Mono, monospace' }}>
                     {profile.stats ? profile.stats.likedPostsCount : (profile.likedPosts ? profile.likedPosts.length : 0)}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.2rem' }}>MÍDIAS FAVORITAS</div>
+                  <div style={{ fontSize: '0.65rem', color: '#888', fontFamily: 'JetBrains Mono, monospace', marginTop: '0.2rem' }}>{t('userProfile.statFavorites').toUpperCase()}</div>
                 </div>
               </div>
             </div>
@@ -319,7 +424,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   gap: '0.5rem'
                 }}
               >
-                <ImageIcon size={16} /> POSTS PUBLICADOS ({profile.posts ? profile.posts.length : 0})
+                <ImageIcon size={16} /> {t('userProfile.tabPosts', { count: profile.posts ? profile.posts.length : 0 }).toUpperCase()}
               </button>
 
               <button
@@ -340,7 +445,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   gap: '0.5rem'
                 }}
               >
-                <Heart size={16} /> CURTIDAS ({profile.likedPosts ? profile.likedPosts.length : 0})
+                <Heart size={16} /> {t('userProfile.tabLikes', { count: profile.likedPosts ? profile.likedPosts.length : 0 }).toUpperCase()}
               </button>
 
               {isOwner && (
@@ -362,7 +467,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                     gap: '0.5rem'
                   }}
                 >
-                  <Settings size={16} /> EDITAR PERFIL & PRIVACIDADE
+                  <Settings size={16} /> {t('userProfile.tabSettings').toUpperCase()}
                 </button>
               )}
             </div>
@@ -371,23 +476,23 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
             <div style={{ padding: '2rem', flex: 1 }}>
               {saveSuccess && (
                 <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', color: '#00ff66', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={18} /> PERFIL E PRIVACIDADE SALVOS COM SUCESSO!
+                  <Check size={18} /> {t('userProfile.saveSuccess').toUpperCase()}
                 </div>
               )}
 
               {isEditing || activeTab === 'settings' ? (
                 <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '650px' }}>
                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#fff', fontFamily: 'JetBrains Mono, monospace', borderBottom: '1px solid #222', paddingBottom: '0.5rem' }}>
-                    ⚙️ CONFIGURAÇÕES DA SUA CONTA
+                    {t('userProfile.settingsTitle').toUpperCase()}
                   </h3>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.4rem' }}>
-                      URL DO AVATAR / FOTO DE PERFIL:
+                      {t('userProfile.avatarLabel').toUpperCase()}:
                     </label>
                     <input
                       type="url"
-                      placeholder="https://exemplo.com/sua-foto.png"
+                      placeholder={t('userProfile.avatarUrlPlaceholder')}
                       value={avatarUrl}
                       onChange={(e) => setAvatarUrl(e.target.value)}
                       style={{
@@ -402,17 +507,17 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                       }}
                     />
                     <p style={{ fontSize: '0.7rem', color: '#666', margin: '0.3rem 0 0 0', fontFamily: 'JetBrains Mono, monospace' }}>
-                      Dica: Cole um link direto de imagem PNG/JPG/GIF.
+                      {t('userProfile.avatarHint')}
                     </p>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.4rem' }}>
-                      URL DO BANNER DE FUNDO:
+                      {t('userProfile.bannerLabel').toUpperCase()}:
                     </label>
                     <input
                       type="url"
-                      placeholder="https://exemplo.com/banner-cyberpunk.jpg"
+                      placeholder={t('userProfile.bannerUrlPlaceholder')}
                       value={bannerUrl}
                       onChange={(e) => setBannerUrl(e.target.value)}
                       style={{
@@ -430,11 +535,11 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, marginBottom: '0.4rem' }}>
-                      SUA BIO / APRESENTAÇÃO:
+                      {t('userProfile.bioLabel').toUpperCase()}:
                     </label>
                     <textarea
                       rows="3"
-                      placeholder="Fale um pouco sobre você, seus artistas favoritos ou estilo..."
+                      placeholder={t('userProfile.bioPlaceholder')}
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       style={{
@@ -451,10 +556,62 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                     />
                   </div>
 
+                  {/* Content Preferences Section */}
+                  <div style={{ background: '#121212', border: '1px solid #222', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ff0055', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Shield size={16} /> {(t('app.contentSection.title') || 'CONTEÚDO E FILTROS DE MÍDIA SENSÍVEL (+18)').toUpperCase()}
+                    </div>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.8rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#ccc' }}>
+                      <input
+                        type="radio"
+                        name="contentPref"
+                        value="hide_mature"
+                        checked={contentPref === 'hide_mature'}
+                        onChange={() => handleContentPrefChange('hide_mature')}
+                        style={{ width: '18px', height: '18px', accentColor: '#a78bfa', cursor: 'pointer', marginTop: '3px' }}
+                      />
+                      <div>
+                        <strong>{t('app.contentSection.hideMature') || 'Esconder posts maduros'}</strong>
+                        <div style={{ fontSize: '0.7rem', color: '#777', marginTop: '0.2rem' }}>{t('app.contentSection.hideMatureDesc') || 'Não mostra nenhum post que tem NSFW e esconde as abas dos boorus que têm esse tipo de conteúdo'}</div>
+                      </div>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.8rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#ccc' }}>
+                      <input
+                        type="radio"
+                        name="contentPref"
+                        value="blur"
+                        checked={contentPref === 'blur'}
+                        onChange={() => handleContentPrefChange('blur')}
+                        style={{ width: '18px', height: '18px', accentColor: '#a78bfa', cursor: 'pointer', marginTop: '3px' }}
+                      />
+                      <div>
+                        <strong>{t('app.contentSection.blur') || 'Esvair'}</strong>
+                        <div style={{ fontSize: '0.7rem', color: '#777', marginTop: '0.2rem' }}>{t('app.contentSection.blurDesc') || 'Permite o usuário ver a mídia mas ela fica borrada até ser revelada'}</div>
+                      </div>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.8rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#ccc' }}>
+                      <input
+                        type="radio"
+                        name="contentPref"
+                        value="show_all"
+                        checked={contentPref === 'show_all'}
+                        onChange={() => handleContentPrefChange('show_all')}
+                        style={{ width: '18px', height: '18px', accentColor: '#a78bfa', cursor: 'pointer', marginTop: '3px' }}
+                      />
+                      <div>
+                        <strong>{t('app.contentSection.showAll') || 'Mostrar tudo'}</strong>
+                        <div style={{ fontSize: '0.7rem', color: '#777', marginTop: '0.2rem' }}>{t('app.contentSection.showAllDesc') || 'Não esconde nada e exibe todas as mídias sem desfoque'}</div>
+                      </div>
+                    </label>
+                  </div>
+
                   {/* Privacy Configs */}
                   <div style={{ background: '#121212', border: '1px solid #222', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00ff66', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Lock size={16} /> CONFIGURAÇÕES DE PRIVACIDADE DO SEU PERFIL
+                      <Lock size={16} /> {(t('userProfile.privacyTitle') || 'PRIVACIDADE DO PERFIL').toUpperCase()}
                     </div>
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#ccc' }}>
@@ -464,7 +621,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                         onChange={(e) => setShowPosts(e.target.checked)}
                         style={{ width: '18px', height: '18px', accentColor: '#a78bfa', cursor: 'pointer' }}
                       />
-                      <span>Mostrar meus posts publicados publicamente para outros usuários</span>
+                      <span>{t('userProfile.privacyShowPosts') || 'Tornar meus posts públicos'}</span>
                     </label>
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', color: '#ccc' }}>
@@ -474,7 +631,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                         onChange={(e) => setShowLikes(e.target.checked)}
                         style={{ width: '18px', height: '18px', accentColor: '#ff0055', cursor: 'pointer' }}
                       />
-                      <span>Mostrar minha lista de curtidas publicamente no meu perfil</span>
+                      <span>{t('userProfile.privacyShowLikes') || 'Tornar minha lista de curtidas pública'}</span>
                     </label>
                   </div>
 
@@ -494,7 +651,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                         boxShadow: '0 0 15px rgba(0, 255, 102, 0.4)'
                       }}
                     >
-                      {saving ? 'SALVANDO...' : '💾 SALVAR ALTERAÇÕES'}
+                      {saving ? t('userProfile.saving').toUpperCase() : t('userProfile.saveChanges').toUpperCase()}
                     </button>
                     <button
                       type="button"
@@ -510,7 +667,7 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                         cursor: 'pointer'
                       }}
                     >
-                      CANCELAR
+                      {t('userProfile.cancel').toUpperCase()}
                     </button>
                   </div>
                 </form>
@@ -519,8 +676,8 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   {profile.privacy && !profile.privacy.showPosts && !isOwner ? (
                     <div style={{ padding: '3rem', textAlign: 'center', background: '#121212', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace' }}>
                       <Lock size={32} style={{ margin: '0 auto 1rem auto', color: '#a78bfa' }} />
-                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>Postagens Privadas</p>
-                      <p style={{ fontSize: '0.85rem' }}>O usuário configurou a privacidade para não exibir suas publicações.</p>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{t('userProfile.privatePostsTitle')}</p>
+                      <p style={{ fontSize: '0.85rem' }}>{t('userProfile.privatePostsText')}</p>
                     </div>
                   ) : profile.posts && profile.posts.length > 0 ? (
                     <div className="media-grid">
@@ -538,10 +695,10 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   ) : (
                     <div style={{ padding: '3rem', textAlign: 'center', background: '#121212', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace' }}>
                       <ImageIcon size={32} style={{ margin: '0 auto 1rem auto', color: '#444' }} />
-                      <p style={{ fontSize: '1rem', color: '#aaa' }}>Este usuário ainda não publicou nenhuma mídia.</p>
+                      <p style={{ fontSize: '1rem', color: '#aaa' }}>{t('userProfile.emptyPostsTitle')}</p>
                       {isOwner && (
                         <button type="button" onClick={onOpenUpload} style={{ marginTop: '1rem', background: '#a78bfa', color: '#000', border: 'none', padding: '0.6rem 1.5rem', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, cursor: 'pointer' }}>
-                          + ENVIAR PRIMEIRA MÍDIA
+                          + {t('userProfile.uploadBtn').toUpperCase()}
                         </button>
                       )}
                     </div>
@@ -552,8 +709,8 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
                   {profile.privacy && !profile.privacy.showLikes && !isOwner ? (
                     <div style={{ padding: '3rem', textAlign: 'center', background: '#121212', border: '1px solid #222', color: '#888', fontFamily: 'JetBrains Mono, monospace' }}>
                       <Lock size={32} style={{ margin: '0 auto 1rem auto', color: '#ff0055' }} />
-                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>Curtidas Privadas</p>
-                      <p style={{ fontSize: '0.85rem' }}>O usuário configurou sua lista de mídias favoritas como privada.</p>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{t('userProfile.privateLikesTitle')}</p>
+                      <p style={{ fontSize: '0.85rem' }}>{t('userProfile.privateLikesText')}</p>
                     </div>
                   ) : profile.likedPosts && profile.likedPosts.length > 0 ? (
                     <div className="media-grid">
@@ -580,6 +737,22 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
           </div>
         ) : null}
       </div>
+
+      {showAgeGate && (
+        <AgeGateModal
+          isOpen={showAgeGate}
+          isBooruGate={false}
+          onClose={() => {
+            setShowAgeGate(false);
+            setPendingContentPref(null);
+          }}
+          onSuccess={(data) => {
+            setShowAgeGate(false);
+            handleAgeVerificationSuccess(data);
+          }}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 }

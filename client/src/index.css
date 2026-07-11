@@ -685,3 +685,55 @@ body {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================================================
+   MOBILE & RESPONSIVE ADAPTATIONS
+   ========================================================================== */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+  }
+  .app-header > div {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  
+  .cinema-modal {
+    grid-template-columns: 1fr !important;
+    max-height: 94vh;
+    overflow-y: auto;
+  }
+  .cinema-media-container {
+    min-height: 250px !important;
+    max-height: 50vh !important;
+  }
+  .cinema-details {
+    padding: 1.25rem !important;
+  }
+  
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+    gap: 1rem !important;
+    padding: 1rem !important;
+  }
+  
+  .profile-header-container {
+    padding: 0 1rem !important;
+    margin-top: -50px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0.6rem 0.8rem;
+  }
+  .logo-text {
+    font-size: 1.2rem;
+    padding: 0.3rem 0.6rem;
+  }
+  .media-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

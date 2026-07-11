@@ -93,8 +93,8 @@ async function fetchGelbooruHtml(tagsArray, pageNum, limitNum) {
     const titleText = titleMatch ? titleMatch[1] : '';
     const tags = titleText.split(/[ ,]+/).map(t => t.trim()).filter(t => !t.startsWith('score:') && !t.startsWith('rating:'));
     
-    const isWebm = art.includes('class="webm"') || art.includes("class='webm'") || tags.includes('video') || tags.includes('webm') || tags.includes('mp4') || tags.includes('animated');
-    const isGif = thumbUrl.toLowerCase().includes('.gif') || tags.includes('gif');
+    const isWebm = art.includes('class="webm"') || art.includes("class='webm'") || tags.includes('video') || tags.includes('webm') || tags.includes('mp4');
+    const isGif = !isWebm && (thumbUrl.toLowerCase().includes('.gif') || tags.includes('gif') || tags.includes('animated_gif') || tags.includes('animated'));
     
     let fileUrl = thumbUrl;
     if (thumbUrl.includes('/thumbnails/')) {
@@ -218,12 +218,12 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
 
     if (cleanUrlLower.endsWith('.mp4') || cleanUrlLower.endsWith('.webm') || cleanUrlLower.endsWith('.mov')) {
       postType = 'video';
-    } else if (cleanUrlLower.endsWith('.gif')) {
+    } else if (cleanUrlLower.endsWith('.gif') || postTags.includes('gif') || postTags.includes('animated_gif')) {
       postType = 'gif';
-    } else if (cleanUrlLower.endsWith('.jpg') || cleanUrlLower.endsWith('.png') || cleanUrlLower.endsWith('.jpeg') || cleanUrlLower.endsWith('.webp')) {
-      postType = 'image';
     } else if (postTags.includes('video') || postTags.includes('mp4') || postTags.includes('webm') || site === 'sakugabooru.com') {
       postType = 'video';
+    } else if (cleanUrlLower.endsWith('.jpg') || cleanUrlLower.endsWith('.png') || cleanUrlLower.endsWith('.jpeg') || cleanUrlLower.endsWith('.webp')) {
+      postType = 'image';
     }
 
     if (type && type !== 'all') {
@@ -291,6 +291,7 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
       rawUrl: fileUrl,
       type: postType,
       tags: postTags.slice(0, 15),
+      nsfw: !siteDomain.toLowerCase().includes('safebooru'),
       likes: 0,
       likedBy: [],
       views: 0,

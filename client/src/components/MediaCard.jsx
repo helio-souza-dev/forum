@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Heart, Eye, Film, Image as ImageIcon, Zap, Hash, Download, Globe, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Heart, Eye, Film, Image as ImageIcon, Zap, Hash, Download, Globe, AlertTriangle, MessageSquare, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import AgeGateModal from './AgeGateModal';
+import ReportModal from './ReportModal';
 
 export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImportPost, importingIds = [], currentUser = null, onOpenProfile }) {
   const { t } = useLanguage();
@@ -8,6 +10,9 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
   const [externalLiked, setExternalLiked] = useState(false);
   const [externalLikeDelta, setExternalLikeDelta] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [showAgeGate, setShowAgeGate] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   if (!post) return null;
 
@@ -24,6 +29,37 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
 
   const viewsCount = post.views !== undefined ? post.views : 0;
   const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
+
+  const contentPref = currentUser
+    ? (currentUser.contentPreference || (currentUser.username ? localStorage.getItem(`user_content_pref_${currentUser.username}`) : null) || 'blur')
+    : (localStorage.getItem('guest_content_pref') || localStorage.getItem('user_content_pref') || 'blur');
+
+  const isNsfw = Boolean(post.nsfw || (post.external && post.siteDomain && !post.siteDomain.toLowerCase().includes('safebooru')) || (post.external && post.siteName && !post.siteName.toLowerCase().includes('safebooru')));
+
+  if (isNsfw && contentPref === 'hide_mature') {
+    return null;
+  }
+
+  const isAdultVerified = currentUser
+    ? Boolean(currentUser.ageVerified || (currentUser.username ? localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult' : false))
+    : (localStorage.getItem('guest_age_verified') === 'verified_adult');
+
+  const booruMode = localStorage.getItem('booru_nsfw_mode');
+
+  let shouldBlur = false;
+  if (isNsfw) {
+    if (contentPref === 'show_all') {
+      shouldBlur = !isAdultVerified && !isRevealed;
+    } else if (post.external) {
+      if (booruMode === 'reveal_all' && isAdultVerified) {
+        shouldBlur = false;
+      } else {
+        shouldBlur = !isRevealed;
+      }
+    } else {
+      shouldBlur = !isRevealed;
+    }
+  }
 
   const handleMediaError = (e) => {
     const step = e.target.dataset.errStep || '0';
@@ -61,7 +97,9 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
     setIsHovered(false);
     if (post.type === 'video' && videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0;
+      try {
+        videoRef.current.currentTime = 0;
+      } catch (err) {}
     }
   };
 
@@ -101,11 +139,21 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
   return (
     <div 
       className="media-card" 
-      onClick={() => onCardClick && onCardClick(post)}
+      onClick={() => {
+        if (shouldBlur) {
+          if (!isAdultVerified) {
+            setShowAgeGate(true);
+          } else {
+            setIsRevealed(true);
+          }
+          return;
+        }
+        if (onCardClick) onCardClick(post);
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="media-preview-container" style={{ cursor: 'pointer', position: 'relative' }}>
+      <div className="media-preview-container" style={{ cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
         {renderBadge()}
 
         {post.banned && (
@@ -156,25 +204,26 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
         )}
         
         {post.type === 'video' ? (
-          isHovered ? (
+          !isHovered && post.previewUrl && typeof post.previewUrl === 'string' && !/\.(mp4|webm|mov)(\?|$)/i.test(post.previewUrl) ? (
+            <img
+              src={post.previewUrl}
+              alt={post.title || 'Media preview'}
+              className="media-preview-img"
+              loading="lazy"
+              style={{ filter: shouldBlur ? 'blur(24px)' : 'none', transform: shouldBlur ? 'scale(1.15)' : 'none', transition: 'filter 0.3s ease, transform 0.3s ease', pointerEvents: 'none', width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={handleMediaError}
+            />
+          ) : (
             <video
               ref={videoRef}
               src={post.url || post.previewUrl}
               className="media-preview-video"
               muted
-              loop
-              autoPlay
+              loop={isHovered}
+              autoPlay={isHovered}
               playsInline
-              style={{ pointerEvents: 'none' }}
-              onError={handleMediaError}
-            />
-          ) : (
-            <img
-              src={post.previewUrl || post.url}
-              alt={post.title || 'Media preview'}
-              className="media-preview-img"
-              loading="lazy"
-              style={{ pointerEvents: 'none' }}
+              preload="metadata"
+              style={{ filter: shouldBlur ? 'blur(24px)' : 'none', transform: shouldBlur ? 'scale(1.15)' : 'none', transition: 'filter 0.3s ease, transform 0.3s ease', pointerEvents: 'none', width: '100%', height: '100%', objectFit: 'cover' }}
               onError={handleMediaError}
             />
           )
@@ -184,27 +233,88 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
             alt={post.title || 'Media preview'}
             className="media-preview-img"
             loading="lazy"
-            style={{ pointerEvents: 'none' }}
+            style={{ filter: shouldBlur ? 'blur(24px)' : 'none', transform: shouldBlur ? 'scale(1.15)' : 'none', transition: 'filter 0.3s ease, transform 0.3s ease', pointerEvents: 'none', width: '100%', height: '100%', objectFit: 'cover' }}
             onError={handleMediaError}
           />
+        )}
+
+        {shouldBlur && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isAdultVerified) {
+                setShowAgeGate(true);
+              } else {
+                setIsRevealed(true);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(10, 0, 5, 0.55)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              zIndex: 3,
+              cursor: 'pointer',
+              color: '#fff',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontWeight: 800,
+              fontSize: '0.75rem',
+              textAlign: 'center',
+              padding: '1rem'
+            }}
+          >
+            <div style={{ backgroundColor: '#ff0055', color: '#fff', padding: '0.45rem 1rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 0 15px rgba(255, 0, 85, 0.4)', letterSpacing: '0.08em' }}>
+              <span>{t('mediaCard.reveal') || 'REVELAR'}</span>
+            </div>
+            <span style={{ fontSize: '0.65rem', color: '#ccc', fontWeight: 500 }}>
+              {t('mediaCard.sensitiveDesc') || 'Conteúdo sensível ou maduro'}
+            </span>
+          </div>
         )}
       </div>
 
       <div className="card-content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
           <h3 className="card-title" style={{ margin: 0, flex: 1 }}>{post.title || t('mediaCard.untitled')}</h3>
-          {(post.author || post.uploader || (post.external && post.siteName)) && (
-            <span 
-              className="author-badge"
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {(post.author || post.uploader || (post.external && post.siteName)) && (
+              <span 
+                className="author-badge"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onOpenProfile) onOpenProfile(post.author || post.uploader || post.siteName.split(' ')[0]);
+                }}
+                style={{ cursor: 'pointer', fontSize: '0.7rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, backgroundColor: 'rgba(167, 139, 250, 0.12)', padding: '0.15rem 0.45rem', border: '1px solid rgba(167, 139, 250, 0.35)', whiteSpace: 'nowrap', borderRadius: '3px' }}
+              >
+                {t('mediaCard.by')} @{post.author || post.uploader || post.siteName.split(' ')[0]}
+              </span>
+            )}
+            <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (onOpenProfile) onOpenProfile(post.author || post.uploader || post.siteName.split(' ')[0]);
+                setShowReportModal(true);
               }}
-              style={{ cursor: 'pointer', fontSize: '0.7rem', color: '#a78bfa', fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, backgroundColor: 'rgba(167, 139, 250, 0.12)', padding: '0.15rem 0.45rem', border: '1px solid rgba(167, 139, 250, 0.35)', whiteSpace: 'nowrap', borderRadius: '3px' }}
+              title={t('reportModal.title')}
+              style={{
+                background: 'transparent',
+                border: '1px solid #331118',
+                color: '#ff3300',
+                cursor: 'pointer',
+                padding: '0.15rem 0.35rem',
+                borderRadius: '3px',
+                display: 'flex',
+                alignItems: 'center',
+                transition: 'all 0.15s'
+              }}
             >
-              {t('mediaCard.by')} @{post.author || post.uploader || post.siteName.split(' ')[0]}
-            </span>
-          )}
+              <AlertTriangle size={13} />
+            </button>
+          </div>
         </div>
         {post.description && (
           <p className="card-desc">{post.description}</p>
@@ -272,6 +382,30 @@ export default function MediaCard({ post, onCardClick, onLike, onTagClick, onImp
           <span>{likesCount}</span>
         </button>
       </div>
+
+      {showAgeGate && (
+        <AgeGateModal
+          isOpen={showAgeGate}
+          isBooruGate={false}
+          onClose={() => setShowAgeGate(false)}
+          onSuccess={() => {
+            setShowAgeGate(false);
+            setIsRevealed(true);
+          }}
+          currentUser={currentUser}
+        />
+      )}
+
+      {showReportModal && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          post={post}
+          onSuccess={(data) => {
+            setShowReportModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

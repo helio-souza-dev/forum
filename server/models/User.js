@@ -13,9 +13,17 @@ const userSchema = new mongoose.Schema({
     showPosts: { type: Boolean, default: true },
     allowComments: { type: Boolean, default: true }
   },
+  followers: { type: [String], default: [] },
+  following: { type: [String], default: [] },
+  falseReportsCount: { type: Number, default: 0 },
+  reportBanned: { type: Boolean, default: false },
+  ageVerified: { type: Boolean, default: false },
+  birthDate: { type: String, default: null },
+  contentPreference: { type: String, enum: ['hide_mature', 'show_all', 'blur'], default: 'blur' },
   createdAt: { type: String, default: () => new Date().toISOString() }
 }, {
   timestamps: true
 });
 
 module.exports = mongoose.model('User', userSchema);
+

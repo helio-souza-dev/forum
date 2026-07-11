@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, Users, FileText, ArrowLeft, Ban, CheckCircle, Clock, ChevronDown, Eye, Heart, Image, Film, X } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -252,6 +252,59 @@ export default function AdminPanel({
   const [mediaFilter, setMediaFilter] = useState('todas');
   const [banTarget, setBanTarget] = useState(null);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsStatusFilter, setReportsStatusFilter] = useState('pending');
+
+  useEffect(() => {
+    if (activeTab === 'denuncias') {
+      fetchReports();
+    }
+  }, [activeTab, reportsStatusFilter]);
+
+  const fetchReports = async () => {
+    try {
+      setReportsLoading(true);
+      const token = localStorage.getItem('prismshare_auth_token');
+      const res = await fetch(`/api/admin/reports?status=${reportsStatusFilter}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReports(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar denúncias:', err);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const handleResolveReport = async (reportId, action, banReason = '') => {
+    try {
+      const token = localStorage.getItem('prismshare_auth_token');
+      const res = await fetch(`/api/admin/reports/${reportId}/resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action, banReason })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        if (action === 'ban' && onBanPost && updated && updated.targetId) {
+          onBanPost(updated.targetId, banReason || 'Banido por denúncia acatada pela moderação');
+        }
+        fetchReports();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Erro ao resolver denúncia.');
+      }
+    } catch (err) {
+      alert('Erro ao resolver denúncia.');
+    }
+  };
 
   const activePosts = posts.filter(p => !p.banned);
   const bannedPosts = posts.filter(p => p.banned);
@@ -321,6 +374,7 @@ export default function AdminPanel({
 
   const tabs = [
     { key: 'midias', label: t('admin.tabMedia').toUpperCase(), icon: <Image size={15} /> },
+    { key: 'denuncias', label: '🚨 DENÚNCIAS', icon: <AlertTriangle size={15} /> },
     { key: 'usuarios', label: t('admin.tabUsers').toUpperCase(), icon: <Users size={15} /> },
     { key: 'auditoria', label: t('admin.tabAudit').toUpperCase(), icon: <FileText size={15} /> }
   ];
@@ -923,6 +977,166 @@ export default function AdminPanel({
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ===== TAB: DENÚNCIAS ===== */}
+        {activeTab === 'denuncias' && (
+          <div>
+            <div style={{
+              padding: '1rem 1.5rem',
+              borderBottom: '1px solid #1a1a1a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#ff0055', fontWeight: 800 }}>
+                <AlertTriangle size={16} />
+                <span>PAINEL DE MODERAÇÃO DE DENÚNCIAS & ANTI-ABUSO</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {['pending', 'resolved', 'dismissed'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => setReportsStatusFilter(status)}
+                    style={{
+                      padding: '0.35rem 0.85rem',
+                      background: reportsStatusFilter === status ? '#ff0055' : '#151515',
+                      color: reportsStatusFilter === status ? '#fff' : '#888',
+                      border: '1px solid #333',
+                      fontFamily: FONT,
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {status === 'pending' ? 'PENDENTES' : status === 'resolved' ? 'ACATADAS/BANIDAS' : 'DESCARTADAS'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ maxHeight: '600px', overflowY: 'auto', padding: '1rem' }}>
+              {reportsLoading ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: '#888' }}>Carregando denúncias...</div>
+              ) : reports.length === 0 ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: '#666', border: '1px dashed #222' }}>
+                  Nenhuma denúncia no status "{reportsStatusFilter.toUpperCase()}".
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {reports.map((r) => (
+                    <div
+                      key={r.id || r._id}
+                      style={{
+                        background: '#0d0d0d',
+                        border: '1px solid #252525',
+                        borderLeft: '4px solid #ff0055',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.85rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: '#888' }}>ALVO (POST ID): </span>
+                          <strong style={{ color: '#a78bfa', fontSize: '0.85rem' }}>{r.targetId}</strong>
+                          <span style={{ margin: '0 0.8rem', color: '#333' }}>|</span>
+                          <span style={{ fontSize: '0.72rem', color: '#888' }}>DENUNCIADO POR: </span>
+                          <strong style={{ color: '#00ff66', fontSize: '0.85rem' }}>@{r.reportedBy}</strong>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: '#666' }}>{formatTimestamp(r.createdAt || new Date())}</span>
+                      </div>
+
+                      <div style={{ background: '#141414', padding: '0.85rem', border: '1px solid #222' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ff3366', marginBottom: '0.35rem' }}>
+                          MOTIVO: {r.reason?.toUpperCase()}
+                        </div>
+                        {r.details && (
+                          <div style={{ fontSize: '0.85rem', color: '#ccc', lineHeight: 1.4 }}>
+                            "{r.details}"
+                          </div>
+                        )}
+                      </div>
+
+                      {reportsStatusFilter === 'pending' && (
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const banMsg = prompt('Motivo público do banimento para esta mídia:', `Violação de regras: ${r.reason}`);
+                              if (banMsg !== null) {
+                                handleResolveReport(r.id || r._id, 'ban', banMsg);
+                              }
+                            }}
+                            style={{
+                              background: '#ff0055',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '0.5rem 1rem',
+                              fontFamily: FONT,
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem'
+                            }}
+                          >
+                            <Ban size={14} /> ACATAR & BANIR MÍDIA
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleResolveReport(r.id || r._id, 'dismiss')}
+                            style={{
+                              background: '#1f1f1f',
+                              color: '#bbb',
+                              border: '1px solid #444',
+                              padding: '0.5rem 1rem',
+                              fontFamily: FONT,
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            DESCARTAR DENÚNCIA
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Deseja punir @${r.reportedBy} por denúncia falsa ou spam deliberado? Isso adicionará penalidades à conta do usuário.`)) {
+                                handleResolveReport(r.id || r._id, 'dismiss_abuse');
+                              }
+                            }}
+                            style={{
+                              background: '#24080e',
+                              color: '#ff3366',
+                              border: '1px solid #ff0055',
+                              padding: '0.5rem 1rem',
+                              fontFamily: FONT,
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem'
+                            }}
+                          >
+                            🚨 PUNIR DENÚNCIA FALSA / ABUSO
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

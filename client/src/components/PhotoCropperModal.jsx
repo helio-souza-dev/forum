@@ -79,14 +79,16 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
   const handleConfirmCrop = () => {
     if (!imageRef.current || !canvasRef.current) return;
     
-    // Output resolution (high definition)
-    const outWidth = type === 'avatar' ? 400 : 1200;
-    const outHeight = type === 'avatar' ? 400 : 400;
+    // Output resolution (high definition crystal clear)
+    const outWidth = type === 'avatar' ? 600 : 2400;
+    const outHeight = type === 'avatar' ? 600 : 800;
 
     const canvas = canvasRef.current;
     canvas.width = outWidth;
     canvas.height = outHeight;
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // Scale from preview viewport to final canvas output
     const scaleFactorX = outWidth / viewportWidth;
@@ -105,7 +107,7 @@ export default function PhotoCropperModal({ isOpen, imageUrl, type = 'avatar', o
       if (blob) {
         onConfirm(blob);
       }
-    }, 'image/webp', 0.88);
+    }, 'image/webp', 0.98);
   };
 
   return (

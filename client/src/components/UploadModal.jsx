@@ -15,6 +15,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess, currentUser })
   const [previewUrl, setPreviewUrl] = useState(null);
   const [externalUrl, setExternalUrl] = useState('');
   const [useUrlMode, setUseUrlMode] = useState(false);
+  const [nsfw, setNsfw] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -74,6 +75,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess, currentUser })
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('tags', JSON.stringify(tags));
+      formData.append('nsfw', nsfw);
 
       if (file && !useUrlMode) {
         formData.append('file', file);
@@ -313,6 +315,18 @@ export default function UploadModal({ isOpen, onClose, onSuccess, currentUser })
                 </span>
               ))}
             </div>
+          </div>
+
+          <div style={{ margin: '1rem 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', color: '#ff3366', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem', fontWeight: 'bold' }}>
+              <input 
+                type="checkbox" 
+                checked={nsfw} 
+                onChange={(e) => setNsfw(e.target.checked)}
+                style={{ accentColor: '#ff0055', width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span>⚠️ MARCAR COMO CONTEÚDO SENSÍVEL / NSFW (+18)</span>
+            </label>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>

@@ -266,7 +266,8 @@ app.get('/api/booru/tags', async (req, res) => {
 app.post('/api/booru/import', (req, res) => {
   try {
     const token = auth.extractBearerToken(req);
-    if (!token || !auth.verifyToken(token)) {
+    const payload = token ? auth.verifyToken(token) : null;
+    if (!payload || !payload.sub) {
       return res.status(401).json({ error: 'Autenticação necessária para importar mídias.' });
     }
 
@@ -275,16 +276,24 @@ app.post('/api/booru/import', (req, res) => {
       return res.status(400).json({ error: 'Dados do post ausentes' });
     }
 
+    const isSafebooru = (postData.siteName && postData.siteName.toLowerCase().includes('safebooru')) || 
+                        (postData.url && postData.url.toLowerCase().includes('safebooru')) || 
+                        (postData.source && postData.source.toLowerCase().includes('safebooru'));
+    const isNsfw = postData.nsfw !== undefined ? Boolean(postData.nsfw) : !isSafebooru;
+
     const importedPost = db.addPost({
       title: postData.title || 'Booru Import',
       description: postData.description || 'Importado de plataforma externa.',
       filename: postData.filename || 'external_booru',
       url: postData.url,
+      rawUrl: postData.rawUrl || postData.url,
+      previewUrl: postData.previewUrl || postData.url,
       type: postData.type || 'image',
       tags: Array.isArray(postData.tags) ? postData.tags : [],
-      uploader: payload ? payload.username : (postData.uploader || postData.author || 'Anônimo'),
-      author: payload ? payload.username : (postData.author || postData.uploader || ''),
-      source: postData.source || ''
+      uploader: payload.username,
+      author: postData.author || postData.uploader || payload.username || 'Anônimo',
+      source: postData.source || '',
+      nsfw: isNsfw
     });
 
     res.status(201).json(importedPost);
@@ -440,7 +449,8 @@ app.post('/api/media', upload.single('file'), (req, res) => {
       tags: parsedTags,
       uploader: authUser || req.body.uploader || req.body.author || 'Anônimo',
       author: authUser || req.body.author || req.body.uploader || '',
-      source: req.body.source || ''
+      source: req.body.source || '',
+      nsfw: Boolean(req.body.nsfw || req.body.isNsfw || req.body.sensitive)
     });
 
     res.status(201).json(newPost);
@@ -503,12 +513,17 @@ app.get('/api/users/:username', (req, res) => {
 
     res.json({
       ...user,
+      isFollowing: Array.isArray(user.followers) && req.query.viewer ? user.followers.some(u => u.toLowerCase() === req.query.viewer.toLowerCase()) : false,
+      followers: user.followers || [],
+      following: user.following || [],
       posts: (user.privacy && !user.privacy.showPosts && req.query.viewer !== user.username) ? [] : userPosts,
       likedPosts: (user.privacy && !user.privacy.showLikes && req.query.viewer !== user.username) ? [] : likedPosts,
       stats: {
         postsCount: userPosts.length,
         likesReceived: userPosts.reduce((acc, p) => acc + (p.likes || 0), 0),
-        likedPostsCount: likedPosts.length
+        likedPostsCount: likedPosts.length,
+        followersCount: (user.followers || []).length,
+        followingCount: (user.following || []).length
       }
     });
   } catch (err) {
@@ -532,6 +547,40 @@ app.put('/api/users/profile', (req, res) => {
   } catch (err) {
     console.error('Erro em PUT /api/users/profile:', err);
     res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
+});
+
+app.post('/api/users/:username/follow', (req, res) => {
+  try {
+    const token = auth.extractBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Autenticação necessária' });
+    const payload = auth.verifyToken(token);
+    if (!payload || !payload.sub) return res.status(401).json({ error: 'Token inválido' });
+
+    const followerUser = db.getUserById(payload.sub);
+    if (!followerUser) return res.status(404).json({ error: 'Usuário seguidor não encontrado' });
+
+    const targetUsername = req.params.username;
+    const followerUsername = followerUser.username;
+
+    const result = db.toggleFollowUser(targetUsername, followerUsername);
+    if (!result) return res.status(400).json({ error: 'Não foi possível seguir este usuário' });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Erro em POST /api/users/:username/follow:', err);
+    res.status(500).json({ error: 'Erro interno ao seguir usuário' });
+  }
+});
+
+app.get('/api/search/suggestions', (req, res) => {
+  try {
+    const query = req.query.q || '';
+    const results = db.universalSearch(query);
+    res.json(results);
+  } catch (err) {
+    console.error('Erro em GET /api/search/suggestions:', err);
+    res.status(500).json({ error: 'Erro ao buscar sugestões' });
   }
 });
 
@@ -672,6 +721,79 @@ app.get('/api/dev/stats', checkRole(['dev']), (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar estatísticas:', err);
     res.status(500).json({ error: 'Erro ao buscar estatísticas do sistema' });
+  }
+});
+
+/* ==========================================================================
+   REPORT SYSTEM & USER CONTENT PREFERENCES ENDPOINTS
+   ========================================================================== */
+app.post('/api/reports', (req, res) => {
+  try {
+    const token = auth.extractBearerToken(req);
+    const payload = token ? auth.verifyToken(token) : null;
+    if (!payload || !payload.username) {
+      return res.status(401).json({ error: 'Você precisa estar logado para abrir denúncias.' });
+    }
+
+    const { targetId, reason, details } = req.body;
+    if (!targetId || !reason) {
+      return res.status(400).json({ error: 'Alvo ou motivo da denúncia não especificados.' });
+    }
+
+    const report = db.createReport({
+      targetId,
+      reportedBy: payload.username,
+      reason,
+      details
+    });
+
+    res.status(201).json(report);
+  } catch (err) {
+    console.error('Erro em POST /api/reports:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Erro interno ao registrar denúncia.' });
+  }
+});
+
+app.get('/api/admin/reports', checkRole(['admin', 'dev']), (req, res) => {
+  try {
+    const status = req.query.status || 'pending';
+    const reports = db.getReports({ status });
+    res.json(reports);
+  } catch (err) {
+    console.error('Erro em GET /api/admin/reports:', err);
+    res.status(500).json({ error: 'Erro ao listar denúncias.' });
+  }
+});
+
+app.post('/api/admin/reports/:id/resolve', checkRole(['admin', 'dev']), (req, res) => {
+  try {
+    const { action, banReason } = req.body;
+    if (!['ban', 'dismiss', 'dismiss_abuse'].includes(action)) {
+      return res.status(400).json({ error: 'Ação de resolução inválida.' });
+    }
+    const report = db.resolveReport(req.params.id, req.authUsername, action, { banReason });
+    res.json(report);
+  } catch (err) {
+    console.error('Erro ao resolver denúncia:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Erro ao resolver denúncia.' });
+  }
+});
+
+app.post('/api/users/settings/content', (req, res) => {
+  try {
+    const token = auth.extractBearerToken(req);
+    const payload = token ? auth.verifyToken(token) : null;
+    if (!payload || !payload.username) {
+      return res.status(401).json({ error: 'Autenticação necessária.' });
+    }
+
+    const { ageVerified, birthDate, contentPreference } = req.body;
+    const updatedUser = db.updateUserAgeAndContent(payload.username, { ageVerified, birthDate, contentPreference });
+    if (!updatedUser) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    res.json(updatedUser);
+  } catch (err) {
+    console.error('Erro em POST /api/users/settings/content:', err);
+    res.status(500).json({ error: 'Erro ao atualizar configurações de conteúdo.' });
   }
 });
 

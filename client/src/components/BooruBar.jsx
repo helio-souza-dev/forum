@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Globe, Film, Search, Zap, Hash, Loader2 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import AgeGateModal from './AgeGateModal';
 
 // Injeta o keyframe da animação uma única vez (evita depender do Tailwind,
 // que é a razão do spinner girar aqui no preview mas não no seu site).
@@ -17,6 +18,7 @@ if (typeof document !== 'undefined' && !document.getElementById('boorubar-spin-k
 }
 
 export default function BooruBar({
+  currentUser,
   sites = [],
   selectedSite = 'sb',
   onSelectSite,
@@ -33,6 +35,8 @@ export default function BooruBar({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [showAgeGate, setShowAgeGate] = useState(false);
+  const [pendingSiteId, setPendingSiteId] = useState(null);
 
   // Controla requisições em voo para evitar que uma resposta antiga
   // sobrescreva uma mais nova (a causa da "instabilidade" original).
@@ -173,7 +177,30 @@ export default function BooruBar({
     }
   };
 
-  const safeSites = Array.isArray(sites) ? sites : [];
+  const contentPref = currentUser?.contentPreference || localStorage.getItem('user_content_pref') || 'blur';
+  const rawSites = Array.isArray(sites) ? sites : [];
+  const safeSites = rawSites.filter(s => {
+    if (contentPref === 'hide_mature') {
+      return s.id === 'sb' || (s.name && s.name.toLowerCase().includes('safebooru')) || (s.domain && s.domain.toLowerCase().includes('safebooru'));
+    }
+    return true;
+  });
+
+  const handleSiteClick = (siteId) => {
+    const siteObj = rawSites.find(s => s.id === siteId);
+    const isSafe = siteId === 'sb' || siteObj?.name?.toLowerCase().includes('safebooru') || siteObj?.domain?.toLowerCase().includes('safebooru');
+    if (!isSafe) {
+      const storedVerified = localStorage.getItem('age_verified');
+      const storedMode = localStorage.getItem('booru_nsfw_mode');
+      if (storedVerified !== 'verified_adult' || !storedMode) {
+        setPendingSiteId(siteId);
+        setShowAgeGate(true);
+        return;
+      }
+    }
+    onSelectSite(siteId);
+  };
+
   const getSiteName = (site) => {
     if (!site) return 'Booru';
     const trans = t(`booruSites.${site.id}.name`);
@@ -256,7 +283,7 @@ export default function BooruBar({
             <button
               type="button"
               key={s.id}
-              onClick={() => onSelectSite(s.id)}
+              onClick={() => handleSiteClick(s.id)}
               style={{
                 backgroundColor: isSelected ? '#1a1a1a' : '#050505',
                 border: `1px solid ${isSelected ? '#a78bfa' : '#222'}`,
@@ -282,115 +309,148 @@ export default function BooruBar({
         })}
       </div>
 
-      {/* Search Input Box with Live Autocomplete */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', position: 'relative' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-          <input
-            type="text"
-            placeholder={t('booruBar.searchPlaceholder', { site: getSiteName(currentSiteInfo) })}
-            value={localTagInput}
-            onChange={(e) => {
-              setLocalTagInput(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={handleInputFocus}
-            onBlur={handleInputBlur}
-            onKeyDown={handleKeyDown}
-            style={{
-              width: '100%',
-              height: '44px',
-              boxSizing: 'border-box',
-              backgroundColor: '#000000',
-              border: '1px solid #444',
-              color: '#fff',
-              padding: '0 1rem 0 3rem',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: '0.9rem'
-            }}
-          />
-
-          {showSuggestions && (suggestLoading || suggestions.length > 0) && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                backgroundColor: '#0c0c0c',
-                border: '1px solid #a78bfa',
-                boxShadow: '8px 8px 0px rgba(167, 139, 250, 0.2)',
-                zIndex: 9999,
-                maxHeight: '280px',
-                overflowY: 'auto',
-                marginTop: '4px'
-              }}
-            >
-              <div style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#888', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                {suggestLoading && (
-                  <Loader2
-                    size={12}
-                    color="#a78bfa"
-                    style={{ animation: 'boorubar-spin 0.8s linear infinite' }}
-                  />
-                )}
-                {t('booruBar.suggestionsTitle', { site: currentSiteInfo.name || 'BOORU' }).toUpperCase()}
-              </div>
-              {suggestions.map((item, idx) => (
-                <div
-                  key={`${item.name}-${idx}`}
-                  onMouseDown={() => handleSuggestionClick(item.name)}
-                  onMouseEnter={(e) => {
-                    setActiveIndex(idx);
-                    e.currentTarget.style.backgroundColor = '#181818';
-                  }}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx === activeIndex ? '#181818' : 'transparent')}
-                  style={{
-                    padding: '0.6rem 1rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '0.85rem',
-                    borderBottom: '1px solid #1a1a1a',
-                    color: '#fff',
-                    backgroundColor: idx === activeIndex ? '#181818' : 'transparent'
-                  }}
-                >
-                  <span style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
-                    <Hash size={14} /> {item.name}
-                  </span>
-                  <span style={{
-                    fontSize: '0.75rem',
-                    color: item.count > 0 ? '#00ff66' : '#888',
-                    backgroundColor: item.count > 0 ? '#09150e' : '#111',
-                    border: `1px solid ${item.count > 0 ? '#00ff66' : '#222'}`,
-                    padding: '0.2rem 0.6rem',
-                    fontWeight: 700,
-                    fontFamily: 'JetBrains Mono, monospace'
-                  }}>
-                    {item.count > 0 ? t('booruBar.resultsCount', { count: Number(item.count).toLocaleString('pt-BR') }) : t('booruBar.tagAvailable')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Booru Tag Search Station (Exclusiva para o Booru selecionado) */}
+      <div style={{ marginTop: '1.25rem', backgroundColor: '#0d0d12', border: '1px solid #2d2640', borderRadius: '8px', padding: '1rem', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', color: '#a78bfa', fontWeight: 800, fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Hash size={16} /> TAGS DO BOORU — {getSiteName(currentSiteInfo).toUpperCase()}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: '#888', fontFamily: 'JetBrains Mono, monospace' }}>
+            {getSiteDesc(currentSiteInfo) || 'Explore milhares de artes, gifs e vídeos por tags'}
+          </span>
         </div>
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={loading}
-          style={{ height: '44px', padding: '0 1.75rem', boxSizing: 'border-box' }}
-        >
-          {loading ? t('booruBar.searching').toUpperCase() : t('booruBar.searchSubmit').toUpperCase()}
-        </button>
-      </form>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', position: 'relative' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#a78bfa' }} />
+            <input
+              type="text"
+              placeholder={`Pesquisar tags em ${getSiteName(currentSiteInfo)} (ex: animated loop highres)...`}
+              value={localTagInput}
+              onChange={(e) => {
+                setLocalTagInput(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              onKeyDown={handleKeyDown}
+              style={{
+                width: '100%',
+                height: '46px',
+                boxSizing: 'border-box',
+                backgroundColor: '#050508',
+                border: '1px solid #4a3875',
+                borderRadius: '6px',
+                color: '#fff',
+                padding: '0 1rem 0 3rem',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: '0.9rem',
+                outline: 'none',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)'
+              }}
+            />
+
+            {showSuggestions && (suggestLoading || suggestions.length > 0) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#0c0c10',
+                  border: '1px solid #a78bfa',
+                  borderRadius: '6px',
+                  boxShadow: '0 12px 30px rgba(0,0,0,0.9), 0 0 15px rgba(167, 139, 250, 0.25)',
+                  zIndex: 9999,
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  marginTop: '6px'
+                }}
+              >
+                <div style={{ padding: '0.5rem 0.9rem', fontSize: '0.75rem', color: '#a78bfa', backgroundColor: '#14111f', borderBottom: '1px solid #2a223d', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800 }}>
+                  {suggestLoading && (
+                    <Loader2
+                      size={13}
+                      color="#a78bfa"
+                      style={{ animation: 'boorubar-spin 0.8s linear infinite' }}
+                    />
+                  )}
+                  SUGESTÕES DE TAGS PARA {getSiteName(currentSiteInfo).toUpperCase()}
+                </div>
+                {suggestions.map((item, idx) => (
+                  <div
+                    key={`${item.name}-${idx}`}
+                    onMouseDown={() => handleSuggestionClick(item.name)}
+                    onMouseEnter={(e) => {
+                      setActiveIndex(idx);
+                      e.currentTarget.style.backgroundColor = '#1d182e';
+                    }}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx === activeIndex ? '#1d182e' : 'transparent')}
+                    style={{
+                      padding: '0.65rem 1rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '0.85rem',
+                      borderBottom: '1px solid #1a1625',
+                      color: '#fff',
+                      backgroundColor: idx === activeIndex ? '#1d182e' : 'transparent',
+                      transition: 'background 0.15s'
+                    }}
+                  >
+                    <span style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+                      <Hash size={14} /> {item.name}
+                    </span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      color: item.count > 0 ? '#00ff66' : '#888',
+                      backgroundColor: item.count > 0 ? '#09150e' : '#111',
+                      border: `1px solid ${item.count > 0 ? '#00ff66' : '#222'}`,
+                      borderRadius: '4px',
+                      padding: '0.2rem 0.6rem',
+                      fontWeight: 700,
+                      fontFamily: 'JetBrains Mono, monospace'
+                    }}>
+                      {item.count > 0 ? t('booruBar.resultsCount', { count: Number(item.count).toLocaleString('pt-BR') }) : t('booruBar.tagAvailable')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ height: '46px', padding: '0 1.75rem', boxSizing: 'border-box', borderRadius: '6px', fontWeight: 800 }}
+          >
+            {loading ? t('booruBar.searching').toUpperCase() : t('booruBar.searchSubmit').toUpperCase()}
+          </button>
+        </form>
+      </div>
 
       <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#666', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <Zap size={12} color="#a78bfa" />
         <span>{t('booruBar.footerHint')}</span>
       </div>
+
+      {showAgeGate && (
+        <AgeGateModal
+          isOpen={showAgeGate}
+          isBooruGate={true}
+          onClose={() => setShowAgeGate(false)}
+          onSuccess={({ booruMode }) => {
+            setShowAgeGate(false);
+            if (pendingSiteId) {
+              onSelectSite(pendingSiteId);
+              setPendingSiteId(null);
+            }
+          }}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 }

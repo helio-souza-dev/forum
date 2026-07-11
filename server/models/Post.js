@@ -22,6 +22,7 @@ const postSchema = new mongoose.Schema({
   likedBy: [{ type: String }],
   views: { type: Number, default: 0 },
   comments: [commentSchema],
+  nsfw: { type: Boolean, default: false },
   banned: { type: Boolean, default: false },
   banReason: { type: String, default: null },
   bannedBy: { type: String, default: null },

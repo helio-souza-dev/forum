@@ -113,6 +113,20 @@ export default function App() {
     setCurrentUser(userData);
     try {
       localStorage.setItem('prismshare_current_user', JSON.stringify(userData));
+      if (userData.ageVerified) {
+        localStorage.setItem(`age_verified_${userData.username}`, 'verified_adult');
+        localStorage.setItem('age_verified', 'verified_adult');
+      } else {
+        localStorage.removeItem(`age_verified_${userData.username}`);
+        localStorage.removeItem('age_verified');
+      }
+      if (userData.contentPreference) {
+        localStorage.setItem(`user_content_pref_${userData.username}`, userData.contentPreference);
+        localStorage.setItem('user_content_pref', userData.contentPreference);
+      } else {
+        localStorage.removeItem(`user_content_pref_${userData.username}`);
+        localStorage.removeItem('user_content_pref');
+      }
     } catch (err) {
       console.error('Erro ao salvar usuário no localStorage:', err);
     }
@@ -123,6 +137,11 @@ export default function App() {
     setMode('local');
     try {
       localStorage.removeItem('prismshare_current_user');
+      localStorage.removeItem('age_verified');
+      localStorage.removeItem('booru_nsfw_mode');
+      localStorage.removeItem('user_content_pref');
+      localStorage.removeItem('guest_age_verified');
+      localStorage.removeItem('guest_content_pref');
     } catch (err) {
       console.error('Erro ao remover usuário do localStorage:', err);
     }
@@ -495,8 +514,13 @@ export default function App() {
           description: externalPost.description,
           filename: externalPost.filename,
           url: externalPost.url,
+          rawUrl: externalPost.rawUrl,
+          previewUrl: externalPost.previewUrl,
           type: externalPost.type,
-          tags: externalPost.tags
+          tags: externalPost.tags,
+          author: externalPost.author || externalPost.uploader,
+          source: externalPost.source,
+          nsfw: Boolean(externalPost.nsfw || (externalPost.external && !String(externalPost.siteName || '').toLowerCase().includes('safebooru')) || (externalPost.external && !String(externalPost.siteDomain || '').toLowerCase().includes('safebooru')))
         })
       });
 
@@ -555,6 +579,9 @@ export default function App() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
         onOpenProfile={handleOpenProfile}
+        onBooruSearchSubmit={handleBooruSearchSubmit}
+        booruTags={booruTags}
+        onSelectPost={(post) => setSelectedPostForModal(post)}
       />
 
       {mode === 'booru' && (
@@ -887,6 +914,8 @@ export default function App() {
               onLike={handleLike}
               onOpenProfile={handleOpenProfile}
               onLogout={handleLogout}
+              onImportPost={handleImportPost}
+              importingIds={importingIds}
               onUpdateUser={(updatedFields) => {
                 if (!currentUser) return;
                 const newCur = { ...currentUser, ...updatedFields };
