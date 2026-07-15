@@ -18,47 +18,9 @@ export default function AdCard({ zoneId = null, currentUser = null, adCategory =
   const defaultSfwZone = localStorage.getItem('exoclick_zone_id_sfw') || "5975042";
   const activeZoneId = zoneId || localStorage.getItem('exoclick_zone_id') || (adCategory === 'sfw' ? defaultSfwZone : defaultAdultZone);
 
-  useEffect(() => {
-    if (!activeZoneId || !adContainerRef.current) return;
-
-    // Limpa o contêiner antes de injetar o script do anúncio
-    adContainerRef.current.innerHTML = '';
-
-    try {
-      const iframe = document.createElement('iframe');
-      iframe.style.width = '100%';
-      iframe.style.height = '280px';
-      iframe.style.border = 'none';
-      iframe.style.overflow = 'hidden';
-      iframe.style.borderRadius = '6px';
-      iframe.scrolling = 'no';
-      
-      adContainerRef.current.appendChild(iframe);
-
-      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (iframeDoc) {
-        iframeDoc.open();
-        iframeDoc.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { margin: 0; padding: 0; background: #0e0e0e; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-            </style>
-          </head>
-          <body>
-            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-            <ins class="eas6a97888e20" data-zoneid="${activeZoneId}"></ins>
-            <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
-          </body>
-          </html>
-        `);
-        iframeDoc.close();
-      }
-    } catch (err) {
-      console.error('Erro ao renderizar anúncio da ExoClick:', err);
-    }
-  }, [activeZoneId]);
+  // Renderizamos o iframe apontando para /ad.html?zone=...
+  // Isso impede qualquer document.write no ciclo do React ou interferência no layout/escala da Masonry Grid
+  const adIframeUrl = `/ad.html?zone=${activeZoneId}`;
 
   return (
     <div className="media-card" style={{
@@ -94,7 +56,19 @@ export default function AdCard({ zoneId = null, currentUser = null, adCategory =
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyItems: 'center', padding: '1rem', background: '#080808' }}>
         {activeZoneId ? (
-          <div ref={adContainerRef} style={{ width: '100%', minHeight: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} />
+          <iframe
+            src={adIframeUrl}
+            title="Sponsored Advertisement"
+            style={{
+              width: '100%',
+              height: '260px',
+              border: 'none',
+              overflow: 'hidden',
+              borderRadius: '6px',
+              backgroundColor: '#080808'
+            }}
+            scrolling="no"
+          />
         ) : (
           <div style={{
             width: '100%',

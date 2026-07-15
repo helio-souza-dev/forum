@@ -169,11 +169,9 @@ export default function MediaFeed({
                 onTagClick={onTagClick}
                 onOpenProfile={onOpenProfile}
               />
-              {/* TESTE: Anúncio desativado temporariamente
               {(index + 1) % 8 === 0 && (
                 <AdCard currentUser={currentUser} adCategory={currentUser?.isAdultVerified ? 'adult' : 'sfw'} />
               )}
-              */}
             </React.Fragment>
           ))}
         </div>
