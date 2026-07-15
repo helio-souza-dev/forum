@@ -157,7 +157,7 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
       }
     }
   } else if (tagsArray.length === 0 && site === 'gb') {
-    tagsArray.push('all');
+    // Sem tag padrão para permitir que as APIs tragam o feed mais recente sem quebrar na query "all"
   }
 
   let rawPosts = [];
@@ -202,13 +202,15 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
     try {
       console.log(`[Booru Engine] Ativando ponte resiliente anti-bot de alta disponibilidade para "${site}"...`);
       const pid = (pageNum - 1);
-      const tagQuery = encodeURIComponent(tagsArray.join(' '));
+      const cleanFallbackTags = tagsArray.filter(t => t !== 'all' && t !== 'animated');
+      const tagQuery = encodeURIComponent(cleanFallbackTags.join(' '));
       const isExplicitQuery = site === 'gb' || site === 'kn' || site === 'yd' || tagsArray.some(t => ['futa', 'nude', 'nsfw', 'explicit', 'ecchi', 'hentai', 'boobs', 'ass'].includes(t));
       
       const fallbackUrls = isExplicitQuery
         ? [
             `https://xbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`,
-            `https://tbib.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`
+            `https://tbib.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`,
+            `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`
           ]
         : [`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`];
       
