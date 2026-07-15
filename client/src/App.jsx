@@ -783,9 +783,11 @@ export default function App() {
                         currentUser={currentUser}
                         onOpenProfile={handleOpenProfile}
                       />
+                      {/* TESTE: Anúncio desativado temporariamente para verificar se causa a tela preta no Booru
                       {(idx + 1) % 8 === 0 && (
                         <AdCard currentUser={currentUser} adCategory={isAdultVerified || currentUser?.isAdultVerified ? 'adult' : 'sfw'} />
                       )}
+                      */}
                     </React.Fragment>
                   ))}
                 </div>
