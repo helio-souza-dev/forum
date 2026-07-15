@@ -25,6 +25,9 @@ function fetchDirectJson(url) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
+          if (data.trim().startsWith('<') || data.includes('<!DOCTYPE')) {
+            return reject(new Error('Bloqueio Anti-Bot Cloudflare (HTML recebido em vez de JSON)'));
+          }
           resolve(JSON.parse(data));
         } catch (e) {
           reject(e);
@@ -189,7 +192,26 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
         rawPosts = Array.isArray(resJson) ? resJson : (resJson.post || []);
       }
     } catch (fallbackErr) {
-      console.error(`[Booru] Erro final ao buscar posts de "${site}":`, fallbackErr.message);
+      console.error(`[Booru] Erro no fallback secundário de "${site}":`, fallbackErr.message);
+    }
+  }
+
+  // FALLBACK DE ALTA DISPONIBILIDADE UNIVERSAL
+  // Se o booru original foi bloqueado pelo Cloudflare (0 posts retornados), usamos a ponte anti-bot
+  if (!rawPosts || rawPosts.length === 0) {
+    try {
+      console.log(`[Booru Engine] Ativando ponte resiliente anti-bot de alta disponibilidade para "${site}"...`);
+      const pid = (pageNum - 1);
+      const tagQuery = encodeURIComponent(tagsArray.join(' '));
+      const isExplicitQuery = site === 'gb' || site === 'kn' || site === 'yd' || tagsArray.some(t => ['futa', 'nude', 'nsfw', 'explicit', 'ecchi', 'hentai', 'boobs', 'ass'].includes(t));
+      const fallbackUrl = isExplicitQuery
+        ? `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`
+        : `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`;
+      
+      const resJson = await fetchDirectJson(fallbackUrl);
+      rawPosts = Array.isArray(resJson) ? resJson : (resJson && resJson.post ? resJson.post : []);
+    } catch (resilientErr) {
+      console.error(`[Booru] Falha na ponte de alta disponibilidade:`, resilientErr.message);
       return [];
     }
   }
@@ -354,6 +376,22 @@ async function fetchBooruTagSuggestions({ site = 'sb', query = '', limit = 12 })
 
     return suggestions.slice(0, limitNum);
   } catch (err) {
+    try {
+      if (site !== 'sb') {
+        const fallbackRes = await fetchDirectJson(`https://safebooru.org/autocomplete.php?q=${cleanQ}`);
+        if (Array.isArray(fallbackRes)) {
+          return fallbackRes.slice(0, limitNum).map(item => {
+            if (typeof item === 'string') {
+              const match = item.match(/^([^\s()]+)\s*\(([0-9,]+)\)/);
+              return match ? { name: match[1], count: Number(match[2].replace(/,/g, '')) || 0 } : { name: item, count: 0 };
+            }
+            return { name: item.value || item.name || '', count: Number(item.count || 0) };
+          }).filter(s => Boolean(s.name));
+        }
+      }
+    } catch (fallbackTagErr) {
+      // Ignora erro final de tag
+    }
     console.error(`[Booru AutoComplete] Erro ao buscar sugestões para "${site}" e query "${query}":`, err.message);
     return [];
   }

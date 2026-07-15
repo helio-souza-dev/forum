@@ -12,6 +12,7 @@ const booru = require('./booru');
 const auth = require('./auth');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // CORS Allowlist Configuration
