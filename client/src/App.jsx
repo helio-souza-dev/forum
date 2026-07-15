@@ -784,7 +784,7 @@ export default function App() {
                         onOpenProfile={handleOpenProfile}
                       />
                       {(idx + 1) % 8 === 0 && (
-                        <AdCard currentUser={currentUser} />
+                        <AdCard currentUser={currentUser} adCategory={isAdultVerified || currentUser?.isAdultVerified ? 'adult' : 'sfw'} />
                       )}
                     </React.Fragment>
                   ))}

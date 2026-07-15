@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Zap } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
-export default function AdCard({ zoneId = null, currentUser = null }) {
+export default function AdCard({ zoneId = null, currentUser = null, adCategory = 'adult' }) {
   const { t } = useLanguage();
   const adContainerRef = useRef(null);
 
@@ -12,8 +12,11 @@ export default function AdCard({ zoneId = null, currentUser = null }) {
     return null;
   }
 
-  // Pega o ID da zona da propriedade ou do localStorage configurado no admin/dev
-  const activeZoneId = zoneId || localStorage.getItem('exoclick_zone_id') || null;
+  // Pega o ID da zona correspondente (Adulto +18 ou Normal/SFW)
+  // 5975042 é o nosso ID do Recommendation Widget criado na ExoClick para o Feed
+  const defaultAdultZone = "5975042";
+  const defaultSfwZone = localStorage.getItem('exoclick_zone_id_sfw') || "5975042";
+  const activeZoneId = zoneId || localStorage.getItem('exoclick_zone_id') || (adCategory === 'sfw' ? defaultSfwZone : defaultAdultZone);
 
   useEffect(() => {
     if (!activeZoneId || !adContainerRef.current) return;
@@ -40,16 +43,13 @@ export default function AdCard({ zoneId = null, currentUser = null }) {
           <html>
           <head>
             <style>
-              body { margin: 0; padding: 0; background: #0e0e0e; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; }
+              body { margin: 0; padding: 0; background: #0e0e0e; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
             </style>
           </head>
           <body>
-            <script type="application/javascript">
-              var ad_idzone = "${activeZoneId}";
-              var ad_width = "300";
-              var ad_height = "250";
-            </script>
-            <script type="application/javascript" src="https://a.exoclick.com/ads.js"></script>
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+            <ins class="eas6a97888e20" data-zoneid="${activeZoneId}"></ins>
+            <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
           </body>
           </html>
         `);

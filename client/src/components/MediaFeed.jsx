@@ -170,7 +170,7 @@ export default function MediaFeed({
                 onOpenProfile={onOpenProfile}
               />
               {(index + 1) % 8 === 0 && (
-                <AdCard currentUser={currentUser} />
+                <AdCard currentUser={currentUser} adCategory={currentUser?.isAdultVerified ? 'adult' : 'sfw'} />
               )}
             </React.Fragment>
           ))}
