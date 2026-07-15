@@ -85,13 +85,13 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
   const isOwner = currentUser && currentUser.username && username && currentUser.username.toLowerCase() === username.toLowerCase();
 
   useEffect(() => {
-    fetchProfile();
+    fetchProfile(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [username, currentUser]);
+  }, [username]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const viewerParam = currentUser ? `?viewer=${encodeURIComponent(currentUser.username)}` : '';
       const res = await fetch(`/api/users/${encodeURIComponent(username)}${viewerParam}`);
@@ -116,7 +116,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
     } catch (err) {
       setError(err.message || 'Erro ao carregar dados do usuário.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -161,7 +161,7 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
 
   const handleContentPreferenceChange = async (pref) => {
     if (!isOwner) return;
-    if (pref === 'show_all' || pref === 'blur') {
+    if (pref === 'show_all') {
       if (!ageVerified) {
         setPendingPreference(pref);
         setShowAgeGate(true);
@@ -275,10 +275,9 @@ export default function UserProfilePage({ username, currentUser, onBack, onSelec
       const updated = await res.json();
       setProfile(prev => ({ ...prev, ...updated }));
       if (onUpdateUser) onUpdateUser(updated);
-      setIsEditing(false);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      fetchProfile();
+      setTimeout(() => setSaveSuccess(false), 3500);
+      fetchProfile(true);
     } catch (err) {
       alert(err.message || 'Erro ao salvar perfil.');
     } finally {

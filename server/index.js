@@ -400,6 +400,18 @@ app.post('/api/upload/free', upload.single('file'), async (req, res) => {
 
 app.post('/api/media', upload.single('file'), (req, res) => {
   try {
+    // Exige autenticação para publicar mídia
+    const token = auth.extractBearerToken(req);
+    const payload = token ? auth.verifyToken(token) : null;
+    if (!payload || !payload.username) {
+      // Se um arquivo foi enviado sem auth, limpa-o
+      if (req.file && req.file.path) {
+        try { fs.unlinkSync(req.file.path); } catch(e) {}
+      }
+      return res.status(401).json({ error: 'Autenticação necessária para publicar mídia.' });
+    }
+    const authUser = payload.username;
+
     let { title, description, tags, type, url } = req.body;
     
     let filename = '';
@@ -436,9 +448,6 @@ app.post('/api/media', upload.single('file'), (req, res) => {
     } else if (Array.isArray(tags)) {
       parsedTags = tags.map(t => String(t).trim().toLowerCase().replace(/^#/, '')).filter(Boolean);
     }
-    const token = auth.extractBearerToken(req);
-    const payload = token ? auth.verifyToken(token) : null;
-    const authUser = payload ? payload.username : null;
 
     const newPost = db.addPost({
       title,
@@ -447,8 +456,8 @@ app.post('/api/media', upload.single('file'), (req, res) => {
       url: req.file ? `/uploads/${filename}` : url,
       type: type || 'image',
       tags: parsedTags,
-      uploader: authUser || req.body.uploader || req.body.author || 'Anônimo',
-      author: authUser || req.body.author || req.body.uploader || '',
+      uploader: authUser,
+      author: authUser,
       source: req.body.source || '',
       nsfw: Boolean(req.body.nsfw || req.body.isNsfw || req.body.sensitive)
     });

@@ -1,5 +1,6 @@
 import React from 'react';
 import MediaCard from './MediaCard';
+import AdCard from './AdCard';
 import { Film, Image as ImageIcon, Zap, Grid, Flame, Clock, Heart, Terminal } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -15,7 +16,8 @@ export default function MediaFeed({
   onTagClick,
   selectedTags = [],
   searchQuery = '',
-  onOpenProfile
+  onOpenProfile,
+  currentUser = null
 }) {
   const { t } = useLanguage();
   return (
@@ -157,15 +159,20 @@ export default function MediaFeed({
         </div>
       ) : (
         <div className="masonry-grid">
-          {posts.map((post) => (
-            <MediaCard
-              key={post.id}
-              post={post}
-              onCardClick={onCardClick}
-              onLike={onLike}
-              onTagClick={onTagClick}
-              onOpenProfile={onOpenProfile}
-            />
+          {posts.map((post, index) => (
+            <React.Fragment key={post.id || index}>
+              <MediaCard
+                post={post}
+                currentUser={currentUser}
+                onCardClick={onCardClick}
+                onLike={onLike}
+                onTagClick={onTagClick}
+                onOpenProfile={onOpenProfile}
+              />
+              {(index + 1) % 8 === 0 && (
+                <AdCard currentUser={currentUser} />
+              )}
+            </React.Fragment>
           ))}
         </div>
       )}

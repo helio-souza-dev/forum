@@ -190,9 +190,12 @@ export default function BooruBar({
     const siteObj = rawSites.find(s => s.id === siteId);
     const isSafe = siteId === 'sb' || siteObj?.name?.toLowerCase().includes('safebooru') || siteObj?.domain?.toLowerCase().includes('safebooru');
     if (!isSafe) {
-      const storedVerified = localStorage.getItem('age_verified');
+      const storedVerified = localStorage.getItem('age_verified') === 'verified_adult' ||
+                             Boolean(currentUser?.ageVerified) ||
+                             (currentUser?.username && localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult') ||
+                             localStorage.getItem('guest_age_verified') === 'verified_adult';
       const storedMode = localStorage.getItem('booru_nsfw_mode');
-      if (storedVerified !== 'verified_adult' || !storedMode) {
+      if (!storedVerified || !storedMode) {
         setPendingSiteId(siteId);
         setShowAgeGate(true);
         return;

@@ -4,6 +4,7 @@ import Header from './components/Header';
 import TagSidebar from './components/TagSidebar';
 import MediaFeed from './components/MediaFeed';
 import MediaCard from './components/MediaCard';
+import AdCard from './components/AdCard';
 import BooruBar from './components/BooruBar';
 import UploadModal from './components/UploadModal';
 import CinemaModal from './components/CinemaModal';
@@ -65,15 +66,21 @@ export default function App() {
   const [selectedPostForModal, setSelectedPostForModal] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
+  const [, setRefreshSettingsIdx] = useState(0);
 
   // Sincronização automática de Páginas/Rotas com a URL do navegador
   useEffect(() => {
     const path = location.pathname;
-    if (path.startsWith('/profile/')) {
-      const username = decodeURIComponent(path.replace('/profile/', '').trim());
+    if (path.startsWith('/profile')) {
+      const username = decodeURIComponent(path.replace(/^\/profile\/?/, '').trim());
       if (username) {
         setSelectedProfileUser(username);
         setMode('profile');
+      } else {
+        setMode('profile');
+        if (currentUser?.username) {
+          setSelectedProfileUser(currentUser.username);
+        }
       }
     } else if (path === '/booru') {
       setMode('booru');
@@ -88,14 +95,16 @@ export default function App() {
       setMode('local');
       setSelectedProfileUser(null);
     }
-  }, [location.pathname]);
+  }, [location.pathname, currentUser?.username]);
 
   const handleOpenProfile = (username) => {
     if (!username) return;
     const cleanUser = username.replace(/^@/, '').trim();
-    setSelectedProfileUser(cleanUser);
-    setMode('profile');
-    navigate(`/profile/${encodeURIComponent(cleanUser)}`);
+    if (cleanUser) {
+      setSelectedProfileUser(cleanUser);
+      setMode('profile');
+      window.history.pushState({}, '', `/profile/${encodeURIComponent(cleanUser)}`);
+    }
   };
 
   const handleModeChange = (newMode) => {
@@ -131,6 +140,43 @@ export default function App() {
       console.error('Erro ao salvar usuário no localStorage:', err);
     }
   };
+
+  useEffect(() => {
+    if (currentUser && currentUser.username) {
+      fetch(`/api/users/${encodeURIComponent(currentUser.username)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.username) {
+            handleAuthSuccess({ ...currentUser, ...data });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setRefreshSettingsIdx(prev => prev + 1);
+      const isVerified = localStorage.getItem('age_verified') === 'verified_adult';
+      const pref = localStorage.getItem('user_content_pref');
+      if (isVerified || pref) {
+        setCurrentUser(prev => {
+          if (!prev) return null;
+          const updated = {
+            ...prev,
+            ageVerified: isVerified ? true : prev.ageVerified,
+            contentPreference: pref || prev.contentPreference
+          };
+          try {
+            localStorage.setItem('prismshare_current_user', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+    };
+    window.addEventListener('user_settings_changed', handleSettingsChange);
+    return () => window.removeEventListener('user_settings_changed', handleSettingsChange);
+  }, []);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -569,7 +615,7 @@ export default function App() {
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onOpenUpload={() => setIsUploadOpen(true)}
+        onOpenUpload={() => handleRequireAuth(() => setIsUploadOpen(true))}
         allTags={allTags}
         onSelectTag={(tagName) => handleTagClickFromCard(tagName)}
         selectedTags={selectedTags}
@@ -726,17 +772,21 @@ export default function App() {
               <>
                 <div className="masonry-grid">
                   {safeBooruPosts.map((post, idx) => (
-                    <MediaCard
-                      key={`${post.id || 'post'}-${idx}`}
-                      post={post}
-                      onCardClick={handleCardClick}
-                      onLike={handleLike}
-                      onTagClick={handleTagClickFromCard}
-                      onImportPost={handleImportPost}
-                      importingIds={importingIds}
-                      currentUser={currentUser}
-                      onOpenProfile={handleOpenProfile}
-                    />
+                    <React.Fragment key={`${post.id || 'post'}-${idx}`}>
+                      <MediaCard
+                        post={post}
+                        onCardClick={handleCardClick}
+                        onLike={handleLike}
+                        onTagClick={handleTagClickFromCard}
+                        onImportPost={handleImportPost}
+                        importingIds={importingIds}
+                        currentUser={currentUser}
+                        onOpenProfile={handleOpenProfile}
+                      />
+                      {(idx + 1) % 8 === 0 && (
+                        <AdCard currentUser={currentUser} />
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
 
@@ -900,29 +950,45 @@ export default function App() {
               />
             )}
           </div>
-        ) : mode === 'profile' && selectedProfileUser ? (
+        ) : mode === 'profile' ? (
           <div style={{ width: '100%' }}>
-            <UserProfilePage
-              username={selectedProfileUser}
-              currentUser={currentUser}
-              onBack={() => {
-                handleModeChange('local');
-              }}
-              onSelectPost={(post) => setSelectedPostForModal(post)}
-              onOpenUpload={() => setIsUploadOpen(true)}
-              onRequireAuth={handleRequireAuth}
-              onLike={handleLike}
-              onOpenProfile={handleOpenProfile}
-              onLogout={handleLogout}
-              onImportPost={handleImportPost}
-              importingIds={importingIds}
-              onUpdateUser={(updatedFields) => {
-                if (!currentUser) return;
-                const newCur = { ...currentUser, ...updatedFields };
-                setCurrentUser(newCur);
-                localStorage.setItem('prismshare_current_user', JSON.stringify(newCur));
-              }}
-            />
+            {selectedProfileUser || currentUser?.username ? (
+              <UserProfilePage
+                username={selectedProfileUser || currentUser.username}
+                currentUser={currentUser}
+                onBack={() => {
+                  handleModeChange('local');
+                }}
+                onSelectPost={(post) => setSelectedPostForModal(post)}
+                onOpenUpload={() => handleRequireAuth(() => setIsUploadOpen(true))}
+                onRequireAuth={handleRequireAuth}
+                onLike={handleLike}
+                onOpenProfile={handleOpenProfile}
+                onLogout={handleLogout}
+                onImportPost={handleImportPost}
+                importingIds={importingIds}
+                onUpdateUser={(updatedFields) => {
+                  if (!currentUser) return;
+                  const newCur = { ...currentUser, ...updatedFields };
+                  setCurrentUser(newCur);
+                  localStorage.setItem('prismshare_current_user', JSON.stringify(newCur));
+                  if (newCur.ageVerified) {
+                    localStorage.setItem(`age_verified_${newCur.username}`, 'verified_adult');
+                    localStorage.setItem('age_verified', 'verified_adult');
+                  }
+                  if (newCur.contentPreference) {
+                    localStorage.setItem(`user_content_pref_${newCur.username}`, newCur.contentPreference);
+                    localStorage.setItem('user_content_pref', newCur.contentPreference);
+                  }
+                }}
+              />
+            ) : (
+              <div style={{ padding: '8rem 2rem', textAlign: 'center', color: '#888', fontFamily: 'JetBrains Mono, monospace' }}>
+                <h2 style={{ color: '#fff', fontSize: '1.5rem', marginBottom: '0.8rem' }}>VOCÊ NÃO ESTÁ LOGADO</h2>
+                <p style={{ color: '#666', maxWidth: '400px', margin: '0 auto 1.5rem' }}>Faça login na sua conta para acessar seu perfil e alterar suas configurações.</p>
+                <button type="button" onClick={() => setIsAuthModalOpen(true)} style={{ background: '#a78bfa', color: '#000', border: 'none', padding: '0.75rem 2rem', fontWeight: 900, cursor: 'pointer', borderRadius: '4px' }}>FAZER LOGIN</button>
+              </div>
+            )}
           </div>
         ) : null}
       </div>

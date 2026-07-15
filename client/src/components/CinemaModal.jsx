@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Heart, Eye, Film, Image as ImageIcon, Zap, Hash, MessageSquare, Send, Calendar, Download, Globe, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import AgeGateModal from './AgeGateModal';
@@ -16,29 +16,33 @@ export default function CinemaModal({ post, onClose, onLike, onTagClick, onComme
   const [isRevealed, setIsRevealed] = useState(false);
   const [showAgeGate, setShowAgeGate] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [, setRefreshIdx] = useState(0);
+
+  useEffect(() => {
+    const handleSettingsChange = () => setRefreshIdx(prev => prev + 1);
+    window.addEventListener('user_settings_changed', handleSettingsChange);
+    return () => window.removeEventListener('user_settings_changed', handleSettingsChange);
+  }, []);
 
   const contentPref = currentUser
-    ? (currentUser.contentPreference || (currentUser.username ? localStorage.getItem(`user_content_pref_${currentUser.username}`) : null) || 'blur')
+    ? (currentUser.contentPreference || (currentUser.username ? localStorage.getItem(`user_content_pref_${currentUser.username}`) : null) || localStorage.getItem('user_content_pref') || 'blur')
     : (localStorage.getItem('guest_content_pref') || localStorage.getItem('user_content_pref') || 'blur');
 
   const isNsfw = Boolean(post.nsfw || (post.external && post.siteDomain && !post.siteDomain.toLowerCase().includes('safebooru')) || (post.external && post.siteName && !post.siteName.toLowerCase().includes('safebooru')));
 
-  const isAdultVerified = currentUser
-    ? Boolean(currentUser.ageVerified || (currentUser.username ? localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult' : false))
-    : (localStorage.getItem('guest_age_verified') === 'verified_adult');
+  const isAdultVerified = Boolean(
+    currentUser?.ageVerified ||
+    localStorage.getItem('age_verified') === 'verified_adult' ||
+    (currentUser?.username && localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult') ||
+    localStorage.getItem('guest_age_verified') === 'verified_adult'
+  );
 
   const booruMode = localStorage.getItem('booru_nsfw_mode');
 
   let shouldBlur = false;
   if (isNsfw) {
-    if (contentPref === 'show_all') {
-      shouldBlur = !isAdultVerified && !isRevealed;
-    } else if (post.external) {
-      if (booruMode === 'reveal_all' && isAdultVerified) {
-        shouldBlur = false;
-      } else {
-        shouldBlur = !isRevealed;
-      }
+    if (isAdultVerified && (contentPref === 'show_all' || booruMode === 'reveal_all')) {
+      shouldBlur = false;
     } else {
       shouldBlur = !isRevealed;
     }

@@ -28,11 +28,11 @@ export default function UserProfileModal({ username, currentUser, onClose, onSel
 
   useEffect(() => {
     fetchProfile();
-  }, [username, currentUser]);
+  }, [username]);
 
   const handleContentPrefChange = async (newPref) => {
     if (!isOwner) return;
-    if (newPref === 'show_all' || newPref === 'blur') {
+    if (newPref === 'show_all') {
       const isVerified = Boolean(currentUser?.ageVerified || (currentUser?.username && localStorage.getItem(`age_verified_${currentUser.username}`) === 'verified_adult'));
       if (!isVerified) {
         setPendingContentPref(newPref);
