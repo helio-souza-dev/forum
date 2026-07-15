@@ -59,14 +59,14 @@ export default function AdCard({ zoneId = null, currentUser = null, adCategory =
           <iframe
             src={adIframeUrl}
             title="Sponsored Advertisement"
-            sandbox="allow-scripts allow-popups allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
             style={{
               width: '100%',
               height: '260px',
               border: 'none',
               overflow: 'hidden',
               borderRadius: '6px',
-              backgroundColor: '#080808'
+              backgroundColor: '#0e0e0e'
             }}
             scrolling="no"
           />

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sponsored Ad</title>
+  <title>Sponsored Advertisement</title>
   <style>
     * {
       box-sizing: border-box;
@@ -13,7 +13,7 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      background: #080808;
+      background: #0e0e0e;
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
@@ -24,20 +24,46 @@
     .ad-wrapper {
       width: 100%;
       height: 100%;
-      max-height: 280px;
+      min-height: 250px;
       display: flex;
       justify-content: center;
       align-items: center;
       overflow: hidden;
       position: relative;
+      background: #0e0e0e;
     }
-    /* Força redimensionamento responsivo para widgets e banners da ExoClick */
+    .fallback-msg {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+      border: 1px dashed #333;
+      border-radius: 6px;
+      width: 90%;
+      height: 90%;
+      background: rgba(167, 139, 250, 0.03);
+    }
+    .fallback-msg h4 {
+      margin: 0 0 0.3rem 0;
+      font-size: 0.85rem;
+      color: #a78bfa;
+      letter-spacing: 0.5px;
+    }
+    .fallback-msg p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: #777;
+      line-height: 1.4;
+    }
+    /* Força redimensionamento para banners da ExoClick */
     .ad-wrapper ins,
     .ad-wrapper iframe,
     .ad-wrapper table,
     .ad-wrapper div[id^="exoclick"] {
       max-width: 100% !important;
-      max-height: 280px !important;
+      max-height: 260px !important;
       display: flex !important;
       justify-content: center !important;
       align-items: center !important;
@@ -47,23 +73,56 @@
 </head>
 <body>
   <div class="ad-wrapper" id="ad-container">
-    <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+    <div class="fallback-msg" id="fallback-box">
+      <h4>ESPAÇO PATROCINADO</h4>
+      <p>O anúncio interativo da ExoClick está sendo carregado ou foi bloqueado pelo seu navegador/AdBlock.</p>
+    </div>
     <ins class="eas6a97888e20" id="exoclick-ins"></ins>
-    <script>
-      (function() {
-        try {
-          var urlParams = new URLSearchParams(window.location.search);
-          var zoneId = urlParams.get('zone') || '5975042';
-          var ins = document.getElementById('exoclick-ins');
-          if (ins && zoneId) {
-            ins.setAttribute('data-zoneid', zoneId);
-            (window.AdProvider = window.AdProvider || []).push({"serve": {}});
-          }
-        } catch (e) {
-          console.error('Ad load error:', e);
-        }
-      })();
-    </script>
   </div>
+
+  <script>
+    (function() {
+      try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var zoneId = urlParams.get('zone') || '5975042';
+        var ins = document.getElementById('exoclick-ins');
+        var fallback = document.getElementById('fallback-box');
+
+        if (ins && zoneId) {
+          ins.setAttribute('data-zoneid', zoneId);
+          
+          // Injeta o script do fornecedor da ExoClick dinamicamente para garantir execução limpa no SPA
+          var script = document.createElement('script');
+          script.async = true;
+          script.type = 'application/javascript';
+          script.src = 'https://a.magsrv.com/ad-provider.js';
+          
+          script.onload = function() {
+            try {
+              (window.AdProvider = window.AdProvider || []).push({"serve": {}});
+            } catch(e) {
+              if (fallback) fallback.style.display = 'flex';
+            }
+          };
+          
+          script.onerror = function() {
+            // Se o adblocker ou navegador bloquear o magsrv, mostra o fallback legível em vez de tela escura
+            if (fallback) fallback.style.display = 'flex';
+          };
+
+          document.head.appendChild(script);
+
+          // Verifica após 3 segundos se o ins continua vazio (sem criativo servido para esta zona)
+          setTimeout(function() {
+            if (ins && (!ins.innerHTML || ins.innerHTML.trim() === '') && fallback) {
+              fallback.style.display = 'flex';
+            }
+          }, 3200);
+        }
+      } catch (e) {
+        console.error('Ad load error:', e);
+      }
+    })();
+  </script>
 </body>
 </html>
