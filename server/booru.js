@@ -197,19 +197,33 @@ async function searchBoorus({ site = 'sb', tags = '', limit = 36, type = 'all', 
   }
 
   // FALLBACK DE ALTA DISPONIBILIDADE UNIVERSAL
-  // Se o booru original foi bloqueado pelo Cloudflare (0 posts retornados), usamos a ponte anti-bot
+  // Se o booru original foi bloqueado pelo Cloudflare (0 posts retornados), usamos a ponte anti-bot do xbooru e safebooru
   if (!rawPosts || rawPosts.length === 0) {
     try {
       console.log(`[Booru Engine] Ativando ponte resiliente anti-bot de alta disponibilidade para "${site}"...`);
       const pid = (pageNum - 1);
       const tagQuery = encodeURIComponent(tagsArray.join(' '));
       const isExplicitQuery = site === 'gb' || site === 'kn' || site === 'yd' || tagsArray.some(t => ['futa', 'nude', 'nsfw', 'explicit', 'ecchi', 'hentai', 'boobs', 'ass'].includes(t));
-      const fallbackUrl = isExplicitQuery
-        ? `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`
-        : `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`;
       
-      const resJson = await fetchDirectJson(fallbackUrl);
-      rawPosts = Array.isArray(resJson) ? resJson : (resJson && resJson.post ? resJson.post : []);
+      const fallbackUrls = isExplicitQuery
+        ? [
+            `https://xbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`,
+            `https://tbib.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`
+          ]
+        : [`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tagQuery}&limit=${limitNum}&pid=${pid}`];
+      
+      for (const fUrl of fallbackUrls) {
+        try {
+          const resJson = await fetchDirectJson(fUrl);
+          const candidate = Array.isArray(resJson) ? resJson : (resJson && resJson.post ? resJson.post : []);
+          if (candidate && candidate.length > 0) {
+            rawPosts = candidate;
+            break;
+          }
+        } catch (subErr) {
+          console.warn(`[Booru SubFallback] Falha em ${fUrl}:`, subErr.message);
+        }
+      }
     } catch (resilientErr) {
       console.error(`[Booru] Falha na ponte de alta disponibilidade:`, resilientErr.message);
       return [];
